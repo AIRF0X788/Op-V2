@@ -1,8 +1,9 @@
-// Gestion de l'interface utilisateur
+// client/js/ui.js - Gestion de l'interface utilisateur
+
 class UIManager {
   constructor() {
     this.currentScreen = 'menuScreen';
-    this.currentPlayer = null;
+    this.currentCell = null;
   }
 
   init() {
@@ -24,6 +25,10 @@ class UIManager {
         network.showNotification('Veuillez entrer un pseudo', 'warning');
         return;
       }
+      if (playerName.length < 2) {
+        network.showNotification('Le pseudo doit faire au moins 2 caractères', 'warning');
+        return;
+      }
       network.createRoom(playerName);
     });
 
@@ -37,6 +42,11 @@ class UIManager {
       
       if (!playerName || !roomCode) {
         network.showNotification('Veuillez remplir tous les champs', 'warning');
+        return;
+      }
+      
+      if (roomCode.length !== 6) {
+        network.showNotification('Le code doit faire 6 caractères', 'warning');
         return;
       }
       
@@ -55,14 +65,16 @@ class UIManager {
     });
 
     leaveBtn.addEventListener('click', () => {
-      this.switchScreen('menuScreen');
-      location.reload(); // Recharger pour réinitialiser
+      if (confirm('Voulez-vous vraiment quitter le lobby ?')) {
+        this.switchScreen('menuScreen');
+        location.reload();
+      }
     });
 
     copyBtn.addEventListener('click', () => {
       const code = document.getElementById('displayRoomCode').textContent;
       navigator.clipboard.writeText(code).then(() => {
-        network.showNotification('Code copié !', 'success');
+        network.showNotification('Code copié dans le presse-papier !', 'success');
       });
     });
   }
@@ -89,28 +101,11 @@ class UIManager {
       playersList.appendChild(card);
     });
 
-    // Afficher les bots
-    const botsList = document.getElementById('botsList');
-    const botCount = document.getElementById('botCount');
-    botsList.innerHTML = '';
-    botCount.textContent = roomData.bots.length;
-
-    roomData.bots.forEach(bot => {
-      const card = document.createElement('div');
-      card.className = 'bot-card';
-      card.style.borderLeftColor = bot.color;
-      card.innerHTML = `
-        <div class="player-color-dot" style="background: ${bot.color}"></div>
-        <span>${bot.name}</span>
-        <span>🤖 ${bot.difficulty}</span>
-      `;
-      botsList.appendChild(card);
-    });
-
     // Afficher le bouton de démarrage seulement pour l'hôte
     const startBtn = document.getElementById('startGameBtn');
     if (network.playerId === roomData.hostId) {
       startBtn.style.display = 'block';
+      startBtn.disabled = roomData.players.length < 1;
     } else {
       startBtn.style.display = 'none';
     }
@@ -119,8 +114,8 @@ class UIManager {
   // === ÉCRAN DE JEU ===
   setupGameScreen() {
     // Boutons du HUD
-    document.getElementById('allianceBtn').addEventListener('click', () => {
-      this.showAllianceModal();
+    document.getElementById('centerBaseBtn').addEventListener('click', () => {
+      game.centerOnBase();
     });
 
     document.getElementById('statsBtn').addEventListener('click', () => {
@@ -134,13 +129,13 @@ class UIManager {
       }
     });
 
-    // Actions du panneau de territoire
-    document.getElementById('recruitBtn').addEventListener('click', () => {
-      this.handleRecruitTroops();
+    // Actions du panneau de cellule
+    document.getElementById('expandBtn').addEventListener('click', () => {
+      this.handleExpand();
     });
 
-    document.getElementById('attackBtn').addEventListener('click', () => {
-      this.handleAttack();
+    document.getElementById('reinforceBtn').addEventListener('click', () => {
+      this.handleReinforce();
     });
 
     // Fermeture des modals
@@ -167,96 +162,107 @@ class UIManager {
     document.getElementById('hudPlayerColor').style.background = player.color;
     document.getElementById('hudGold').textContent = Math.floor(player.gold);
     document.getElementById('hudIncome').textContent = Math.floor(player.income);
-    document.getElementById('hudTroops').textContent = player.troops;
+    
+    // Calculer le nombre de cellules
+    const cells = game.mapData?.cells?.filter(c => c.o === player.id).length || 0;
+    document.getElementById('hudCells').textContent = cells;
+    document.getElementById('hudTroops').textContent = player.troops || 0;
   }
 
-  showTerritoryPanel(territory, gameState) {
-    const panel = document.getElementById('territoryPanel');
+  showCellPanel(x, y, mapData, gameState) {
+    const panel = document.getElementById('cellPanel');
     panel.classList.remove('hidden');
+
+    this.currentCell = { x, y };
+
+    // Trouver les données de la cellule
+    const cellData = mapData.cells.find(c => c.x === x && c.y === y);
+    
+    if (!cellData) {
+      panel.classList.add('hidden');
+      return;
+    }
 
     // Trouver le propriétaire
     let owner = null;
-    if (territory.owner) {
-      owner = [...gameState.players, ...gameState.bots].find(p => p.id === territory.owner);
+    let ownerName = 'Neutre';
+    if (cellData.o) {
+      owner = gameState.players.find(p => p.id === cellData.o);
+      ownerName = owner ? owner.name : 'Inconnu';
     }
 
-    document.getElementById('territoryName').textContent = territory.name;
-    document.getElementById('territoryOwner').textContent = owner ? owner.name : 'Neutre';
-    document.getElementById('territoryTroops').textContent = territory.troops;
-    document.getElementById('territoryIncome').textContent = territory.income;
+    document.getElementById('cellInfo').textContent = `Cellule (${x}, ${y})`;
+    document.getElementById('cellOwner').textContent = ownerName;
+    document.getElementById('cellTroops').textContent = cellData.tr || 0;
+    document.getElementById('cellPosition').textContent = `${x}, ${y}`;
 
-    // Remplir la liste des cibles d'attaque
-    const attackSelect = document.getElementById('attackTarget');
-    attackSelect.innerHTML = '<option value="">Sélectionner une cible</option>';
-    
-    territory.neighbors.forEach(neighborId => {
-      const neighbor = gameState.territories.find(t => t.id === neighborId);
-      if (neighbor && neighbor.owner !== network.playerId) {
-        const neighborOwner = [...gameState.players, ...gameState.bots].find(p => p.id === neighbor.owner);
-        const option = document.createElement('option');
-        option.value = neighbor.id;
-        option.textContent = `${neighbor.name} (${neighborOwner ? neighborOwner.name : 'Neutre'}) - ${neighbor.troops} ⚔️`;
-        attackSelect.appendChild(option);
+    // Déterminer les actions possibles
+    const isOurs = cellData.o === network.playerId;
+    const isAdjacent = this.isCellAdjacentToPlayer(x, y, network.playerId, mapData);
+    const isNeutral = !cellData.o;
+    const isEnemy = cellData.o && cellData.o !== network.playerId;
+
+    // Bouton d'expansion
+    const expandBtn = document.getElementById('expandBtn');
+    if (isOurs) {
+      expandBtn.disabled = true;
+      expandBtn.textContent = '✅ Votre territoire';
+    } else if (isAdjacent) {
+      expandBtn.disabled = false;
+      if (isNeutral) {
+        expandBtn.textContent = '➕ Conquérir (50💰)';
+        expandBtn.className = 'btn btn-primary';
+      } else if (isEnemy) {
+        expandBtn.textContent = '⚔️ Attaquer (50💰)';
+        expandBtn.className = 'btn btn-danger';
       }
+    } else {
+      expandBtn.disabled = true;
+      expandBtn.textContent = '❌ Pas adjacent';
+    }
+
+    // Renforcement
+    document.getElementById('reinforceBtn').disabled = !isOurs;
+    document.getElementById('reinforceCount').disabled = !isOurs;
+  }
+
+  isCellAdjacentToPlayer(x, y, playerId, mapData) {
+    // Vérifier les 8 voisins
+    const directions = [
+      [-1, -1], [0, -1], [1, -1],
+      [-1, 0],           [1, 0],
+      [-1, 1],  [0, 1],  [1, 1]
+    ];
+
+    return directions.some(([dx, dy]) => {
+      const neighbor = mapData.cells.find(c => c.x === x + dx && c.y === y + dy);
+      return neighbor && neighbor.o === playerId;
     });
-
-    // Désactiver les actions si ce n'est pas notre territoire
-    const isOurs = territory.owner === network.playerId;
-    document.getElementById('recruitBtn').disabled = !isOurs;
-    document.getElementById('attackBtn').disabled = !isOurs;
-    document.getElementById('recruitCount').disabled = !isOurs;
-    document.getElementById('attackTroops').disabled = !isOurs;
-    document.getElementById('attackTarget').disabled = !isOurs;
   }
 
-  hideTerritoryPanel() {
-    document.getElementById('territoryPanel').classList.add('hidden');
+  hideCellPanel() {
+    document.getElementById('cellPanel').classList.add('hidden');
+    this.currentCell = null;
   }
 
-  handleRecruitTroops() {
-    const territory = game.renderer.selectedTerritory;
-    if (!territory) return;
+  handleExpand() {
+    if (!this.currentCell) return;
 
-    const count = parseInt(document.getElementById('recruitCount').value);
+    const { x, y } = this.currentCell;
+    game.expandToCell(x, y);
+  }
+
+  handleReinforce() {
+    if (!this.currentCell) return;
+
+    const count = parseInt(document.getElementById('reinforceCount').value);
     if (isNaN(count) || count < 1) {
-      network.showNotification('Nombre de troupes invalide', 'warning');
+      network.showNotification('Nombre invalide', 'warning');
       return;
     }
 
-    network.recruitTroops(territory.id, count);
-  }
-
-  handleAttack() {
-    const fromTerritory = game.renderer.selectedTerritory;
-    if (!fromTerritory) return;
-
-    const toTerritoryId = document.getElementById('attackTarget').value;
-    const troops = parseInt(document.getElementById('attackTroops').value);
-
-    if (!toTerritoryId) {
-      network.showNotification('Sélectionnez une cible', 'warning');
-      return;
-    }
-
-    if (isNaN(troops) || troops < 1) {
-      network.showNotification('Nombre de troupes invalide', 'warning');
-      return;
-    }
-
-    if (troops > fromTerritory.troops) {
-      network.showNotification('Pas assez de troupes', 'warning');
-      return;
-    }
-
-    network.attack(fromTerritory.id, toTerritoryId, troops);
-    
-    // Animation visuelle
-    const toTerritory = game.currentGameState.territories.find(t => t.id === toTerritoryId);
-    if (toTerritory) {
-      game.renderer.animateAttack(fromTerritory, toTerritory);
-    }
-
-    network.showNotification('Attaque lancée !', 'info');
+    const { x, y } = this.currentCell;
+    game.reinforceCell(x, y, count);
   }
 
   showStatsModal() {
@@ -266,26 +272,19 @@ class UIManager {
 
     if (!game.currentGameState) return;
 
-    // Calculer les statistiques
-    const allPlayers = [...game.currentGameState.players, ...game.currentGameState.bots];
-    const stats = allPlayers.map(player => {
-      const territoriesOwned = game.currentGameState.territories.filter(t => t.owner === player.id).length;
-      const totalTroops = game.currentGameState.territories
-        .filter(t => t.owner === player.id)
-        .reduce((sum, t) => sum + t.troops, 0);
+    const players = game.currentGameState.players.map(player => {
+      const cells = game.mapData?.cells?.filter(c => c.o === player.id).length || 0;
       
       return {
         name: player.name,
         color: player.color,
         gold: Math.floor(player.gold),
         income: Math.floor(player.income),
-        territories: territoriesOwned,
-        troops: totalTroops,
-        isBot: player.isBot
+        cells: cells,
+        troops: player.troops || 0
       };
-    }).sort((a, b) => b.territories - a.territories);
+    }).sort((a, b) => b.cells - a.cells);
 
-    // Afficher les stats
     content.innerHTML = `
       <div class="stats-table">
         <table style="width: 100%; border-collapse: collapse;">
@@ -293,14 +292,14 @@ class UIManager {
             <tr style="border-bottom: 2px solid var(--border-color);">
               <th style="padding: 0.75rem; text-align: left;">Rang</th>
               <th style="padding: 0.75rem; text-align: left;">Joueur</th>
-              <th style="padding: 0.75rem; text-align: center;">Territoires</th>
+              <th style="padding: 0.75rem; text-align: center;">Cellules</th>
               <th style="padding: 0.75rem; text-align: center;">Troupes</th>
               <th style="padding: 0.75rem; text-align: center;">Or</th>
               <th style="padding: 0.75rem; text-align: center;">Revenu/s</th>
             </tr>
           </thead>
           <tbody>
-            ${stats.map((player, index) => `
+            ${players.map((player, index) => `
               <tr style="border-bottom: 1px solid var(--border-color);">
                 <td style="padding: 0.75rem;">
                   ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
@@ -308,10 +307,10 @@ class UIManager {
                 <td style="padding: 0.75rem;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div style="width: 15px; height: 15px; border-radius: 50%; background: ${player.color};"></div>
-                    ${player.name} ${player.isBot ? '🤖' : ''}
+                    ${player.name}
                   </div>
                 </td>
-                <td style="padding: 0.75rem; text-align: center;">${player.territories}</td>
+                <td style="padding: 0.75rem; text-align: center;">🏠 ${player.cells}</td>
                 <td style="padding: 0.75rem; text-align: center;">⚔️ ${player.troops}</td>
                 <td style="padding: 0.75rem; text-align: center;">💰 ${player.gold}</td>
                 <td style="padding: 0.75rem; text-align: center;">📈 ${player.income}</td>
@@ -323,70 +322,56 @@ class UIManager {
     `;
   }
 
-  showAllianceModal() {
-    const modal = document.getElementById('allianceModal');
-    const content = document.getElementById('allianceContent');
+  showGameOverModal(data) {
+    const modal = document.getElementById('statsModal');
+    const content = document.getElementById('statsContent');
     modal.classList.remove('hidden');
 
-    if (!game.currentGameState) return;
-
-    const currentPlayer = game.currentGameState.players.find(p => p.id === network.playerId);
-    const otherPlayers = game.currentGameState.players.filter(p => p.id !== network.playerId);
+    const duration = Math.floor((data.duration || 0) / 1000);
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
 
     content.innerHTML = `
-      <div class="alliance-section">
-        <h3 style="margin-bottom: 1rem; color: var(--secondary-color);">Vos alliances</h3>
-        ${currentPlayer && currentPlayer.alliances && currentPlayer.alliances.length > 0 ? `
-          <div class="alliance-list">
-            ${currentPlayer.alliances.map(allyId => {
-              const ally = game.currentGameState.players.find(p => p.id === allyId);
-              return ally ? `
-                <div class="alliance-item" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--dark-bg); border-radius: 8px; margin-bottom: 0.5rem;">
-                  <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <div style="width: 15px; height: 15px; border-radius: 50%; background: ${ally.color};"></div>
-                    <span>${ally.name}</span>
-                  </div>
-                  <button class="btn btn-danger btn-small" onclick="game.ui.breakAlliance('${allyId}')">Rompre</button>
-                </div>
-              ` : '';
-            }).join('')}
-          </div>
-        ` : '<p style="color: var(--text-muted);">Vous n\'avez pas d\'alliance pour le moment.</p>'}
-
-        <h3 style="margin: 2rem 0 1rem; color: var(--primary-color);">Proposer une alliance</h3>
-        ${otherPlayers.length > 0 ? `
-          <div class="players-alliance-list">
-            ${otherPlayers.map(player => `
-              <div class="alliance-item" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--dark-bg); border-radius: 8px; margin-bottom: 0.5rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div style="width: 15px; height: 15px; border-radius: 50%; background: ${player.color};"></div>
-                  <span>${player.name}</span>
-                </div>
-                <button class="btn btn-primary btn-small" onclick="game.ui.proposeAlliance('${player.id}')">
-                  ${currentPlayer.alliances && currentPlayer.alliances.includes(player.id) ? '✓ Allié' : 'Proposer'}
-                </button>
-              </div>
+      <div style="text-align: center; padding: 2rem;">
+        <h2 style="font-size: 3rem; margin-bottom: 1rem;">
+          ${data.winner.id === network.playerId ? '🎉' : '👑'}
+        </h2>
+        <h3 style="margin-bottom: 2rem;">
+          ${data.winner.name} a conquis l'Europe !
+        </h3>
+        <p style="margin-bottom: 2rem; color: var(--text-muted);">
+          Durée de la partie : ${minutes}m ${seconds}s
+        </p>
+        
+        <h4 style="margin: 2rem 0 1rem;">📊 Classement final</h4>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border-color);">
+              <th style="padding: 0.75rem;">Rang</th>
+              <th style="padding: 0.75rem;">Joueur</th>
+              <th style="padding: 0.75rem;">Cellules</th>
+              <th style="padding: 0.75rem;">Troupes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.stats.map((player, index) => `
+              <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 0.75rem; text-align: center;">
+                  ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                </td>
+                <td style="padding: 0.75rem;">${player.name}</td>
+                <td style="padding: 0.75rem; text-align: center;">${player.cells}</td>
+                <td style="padding: 0.75rem; text-align: center;">${player.troops}</td>
+              </tr>
             `).join('')}
-          </div>
-        ` : '<p style="color: var(--text-muted);">Aucun autre joueur disponible.</p>'}
-
-        <div style="margin-top: 2rem; padding: 1rem; background: rgba(52, 152, 219, 0.1); border-radius: 8px; border-left: 3px solid var(--primary-color);">
-          <p style="font-size: 0.9rem;"><strong>💡 Info :</strong> Les alliances permettent de coordonner vos attaques et de partager des territoires. Les alliés ne peuvent pas s'attaquer mutuellement.</p>
-        </div>
+          </tbody>
+        </table>
+        
+        <button class="btn btn-primary btn-large" style="margin-top: 2rem;" onclick="location.reload()">
+          Nouvelle partie
+        </button>
       </div>
     `;
-  }
-
-  proposeAlliance(playerId) {
-    // TODO: Implémenter la logique d'alliance côté serveur
-    network.showNotification('Fonctionnalité bientôt disponible !', 'info');
-    console.log('Proposer alliance à', playerId);
-  }
-
-  breakAlliance(playerId) {
-    // TODO: Implémenter la logique de rupture d'alliance
-    network.showNotification('Alliance rompue', 'warning');
-    console.log('Rompre alliance avec', playerId);
   }
 
   // === NAVIGATION ===

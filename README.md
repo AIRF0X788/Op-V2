@@ -1,33 +1,50 @@
-# 🌍 WorldConquest.io
+# 🌍 WorldConquest.io - Style OpenFront.io
 
-Un jeu de stratégie multijoueur en temps réel inspiré d'OpenFront.io, où vous conquérez le monde avec vos amis !
+Un jeu de stratégie multijoueur en temps réel où vous conquérez l'Europe pixel par pixel avec vos amis !
 
 ## ✨ Fonctionnalités
 
-- 🎮 **Multijoueur en temps réel** avec Socket.io
-- 🤖 **Intelligence artificielle** pour les bots adverses
-- 💰 **Système économique** avec gestion des ressources
-- ⚔️ **Combat stratégique** entre territoires
-- 🤝 **Système d'alliances** (à venir)
-- 🏆 **Classement en temps réel** des joueurs
-- 🎨 **Interface moderne** et responsive
+### 🎮 Gameplay Style OpenFront.io
+- **Placement de base** : Choisissez stratégiquement où commencer sur la carte d'Europe
+- **Expansion organique** : Étendez votre territoire cellule par cellule
+- **Combat tactique** : Attaquez les territoires adjacents ennemis
+- **Système économique** : Gagnez de l'or avec vos territoires et recrutez des troupes
+- **Temps réel** : Jouez simultanément avec vos amis
+
+### 🗺️ Carte
+- Grille de 150x100 cellules représentant l'Europe
+- Détection terre/mer automatique
+- Minimap pour navigation rapide
+- Zoom et déplacement fluides
+
+### 🎯 Objectif
+Conquérez **80% de la carte** pour remporter la victoire !
 
 ## 📁 Structure du Projet
 
 ```
 worldconquest-io/
 ├── client/
-│   ├── index.html          # Page principale
+│   ├── index.html              # Interface principale
 │   ├── css/
-│   │   └── style.css       # Styles du jeu
+│   │   └── style.css           # Styles du jeu
 │   └── js/
-│       ├── main.js         # Point d'entrée
-│       ├── game.js         # Logique principale
-│       ├── renderer.js     # Rendu graphique
-│       ├── ui.js           # Gestion UI
-│       └── network.js      # Communication Socket.io
+│       ├── main.js             # Point d'entrée
+│       ├── game.js             # Logique principale
+│       ├── mapRenderer.js      # Rendu de la carte
+│       ├── placement.js        # Phase de placement
+│       ├── ui.js               # Interface utilisateur
+│       └── network.js          # Communication Socket.io
 ├── server/
-│   └── server.js           # Serveur Node.js
+│   ├── server.js               # Serveur principal
+│   ├── game/
+│   │   ├── GameRoomOpenFront.js # Gestion des parties
+│   │   ├── MapGrid.js          # Système de grille
+│   │   ├── Player.js           # Classe joueur
+│   │   ├── Bot.js              # Intelligence artificielle
+│   │   └── Territory.js        # Ancien système (legacy)
+│   └── utils/
+│       └── helpers.js          # Fonctions utilitaires
 ├── package.json
 └── README.md
 ```
@@ -35,201 +52,241 @@ worldconquest-io/
 ## 🚀 Installation Locale
 
 ### Prérequis
-- Node.js (v14 ou supérieur)
+- Node.js v14 ou supérieur
 - npm ou yarn
 
-### Étapes
+### Installation
 
-1. **Cloner ou créer le projet**
 ```bash
+# 1. Créer le projet
 mkdir worldconquest-io
 cd worldconquest-io
-```
 
-2. **Créer la structure des dossiers**
-```bash
-mkdir -p client/css client/js server
-```
+# 2. Copier tous les fichiers dans leur dossier respectif
 
-3. **Copier les fichiers** fournis dans leurs dossiers respectifs
-
-4. **Installer les dépendances**
-```bash
+# 3. Installer les dépendances
 npm install
-```
 
-5. **Lancer le serveur en mode développement**
-```bash
+# 4. Lancer le serveur
+npm start
+
+# Ou en mode développement avec auto-reload
 npm run dev
 ```
 
-6. **Ouvrir votre navigateur**
+### Ouvrir le jeu
+
 ```
 http://localhost:3000
 ```
 
+## 🎮 Comment Jouer
+
+### 1️⃣ Créer ou Rejoindre une Partie
+
+1. Entrez votre pseudo
+2. Cliquez sur **"Créer une partie"** ou **"Rejoindre une partie"**
+3. Si vous rejoignez, entrez le code à 6 caractères
+4. Partagez le code avec vos amis
+
+### 2️⃣ Placer Votre Base
+
+1. Une fois tous les joueurs dans le lobby, l'hôte démarre la partie
+2. **Cliquez sur une zone verte** de la carte pour placer votre base
+3. Choisissez stratégiquement ! Vous ne pourrez pas changer
+4. Attendez que tous les joueurs placent leur base
+
+### 3️⃣ Conquérir l'Europe
+
+**Contrôles :**
+- **Clic gauche** : Sélectionner une cellule
+- **Clic droit + drag** : Déplacer la caméra
+- **Molette** : Zoomer/Dézoomer
+
+**Actions disponibles :**
+
+#### 🏠 Étendre votre territoire
+- Coût : **50 💰**
+- Cliquez sur une cellule adjacente à votre territoire
+- Si elle est neutre, vous la prenez directement
+- Si elle appartient à un ennemi, combat automatique !
+
+#### ⚔️ Combat
+- Le combat est **automatique** basé sur les troupes adjacentes
+- Plus vous avez de troupes autour, plus vous avez de chances de gagner
+- Les pertes sont distribuées sur vos cellules adjacentes
+
+#### 🛡️ Renforcer vos cellules
+- Coût : **10 💰 par troupe**
+- Ajoutez des troupes à une cellule que vous possédez
+- Défendez les positions stratégiques
+
+#### 💰 Économie
+- Chaque cellule génère **1 💰/seconde**
+- Plus vous avez de territoire, plus vous gagnez d'or
+- Utilisez votre or pour étendre et renforcer
+
+### 4️⃣ Gagner la Partie
+
+- Conquérez **80% de toutes les terres** de la carte
+- Éliminez tous vos adversaires
+- Devenez le maître de l'Europe ! 👑
+
 ## 🌐 Hébergement Gratuit
 
-### Option 1 : Render.com (Recommandé)
-
-1. Créer un compte sur [Render.com](https://render.com)
-2. Créer un nouveau **Web Service**
-3. Connecter votre dépôt GitHub
-4. Configuration :
-   - **Build Command** : `npm install`
-   - **Start Command** : `npm start`
-   - **Environment** : Node
-5. Déployer !
-
-### Option 2 : Railway.app
+### Option 1 : Railway.app (Recommandé)
 
 1. Créer un compte sur [Railway.app](https://railway.app)
 2. Créer un nouveau projet depuis GitHub
 3. Railway détecte automatiquement Node.js
-4. Déploiement automatique !
+4. Variables d'environnement (optionnel) :
+   ```
+   PORT=3000
+   NODE_ENV=production
+   ```
+5. Déployer automatiquement !
+
+**Avantages :**
+- ✅ Déploiement automatique depuis GitHub
+- ✅ 500 heures gratuites par mois
+- ✅ WebSocket supporté
+- ✅ HTTPS inclus
+
+### Option 2 : Render.com
+
+1. Créer un compte sur [Render.com](https://render.com)
+2. Créer un nouveau **Web Service**
+3. Configuration :
+   - **Build Command** : `npm install`
+   - **Start Command** : `npm start`
+   - **Environment** : Node
+4. Déployer !
 
 ### Option 3 : Glitch.com
 
 1. Créer un compte sur [Glitch.com](https://glitch.com)
 2. Créer un nouveau projet Node.js
-3. Importer vos fichiers ou cloner depuis GitHub
+3. Importer vos fichiers
 4. Le serveur démarre automatiquement
 
-### Option 4 : Heroku
+## ⚙️ Configuration
 
-1. Créer un compte sur [Heroku](https://heroku.com)
-2. Installer Heroku CLI
-```bash
-heroku login
-heroku create worldconquest-io
-git push heroku main
-```
+### Modifier la taille de la carte
 
-## 🎮 Comment Jouer
-
-### Créer une Partie
-
-1. Entrez votre pseudo
-2. Cliquez sur "Créer une partie"
-3. Partagez le code de la room avec vos amis
-4. Attendez que tout le monde rejoigne
-5. Cliquez sur "Démarrer la partie"
-
-### Mécaniques de Jeu
-
-#### 💰 Économie
-- Chaque territoire génère de l'or automatiquement
-- L'or est nécessaire pour recruter des troupes
-- Plus vous avez de territoires, plus vos revenus sont élevés
-
-#### ⚔️ Combat
-- Sélectionnez un de vos territoires
-- Choisissez un territoire voisin à attaquer
-- Envoyez vos troupes
-- L'attaquant a un bonus de 20% au combat
-
-#### 🤖 Bots
-- Les bots jouent automatiquement
-- Ils attaquent les territoires faibles
-- Parfait pour s'entraîner au début
-
-#### 🏆 Victoire
-- Conquérez tous les territoires de la carte
-- Éliminez tous vos adversaires
-- Devenez le maître du monde !
-
-## 🔧 Configuration Avancée
-
-### Variables d'Environnement
-
-Créer un fichier `.env` :
-```env
-PORT=3000
-NODE_ENV=production
-```
-
-### Modifier les Paramètres du Jeu
-
-Dans `server/server.js`, vous pouvez ajuster :
+Dans `server/game/GameRoomOpenFront.js` :
 
 ```javascript
-// Nombre de bots par défaut
-this.initializeBots(5); // Changer le nombre ici
-
-// Vitesse du jeu (en millisecondes)
-this.tickRate = 1000; // 1 seconde par tick
-
-// Or de départ
-gold: 1000, // Pour les joueurs
-gold: 500,  // Pour les bots
+// Ligne 17
+this.mapGrid = new MapGrid(150, 100); // Largeur x Hauteur
 ```
 
-### Ajouter des Territoires
+### Ajuster les coûts
 
-Dans la méthode `initializeTerritories()` :
+Dans `server/game/GameRoomOpenFront.js` :
 
 ```javascript
-const territoryData = [
-  { 
-    id: 'nouveau', 
-    name: 'Nouveau Territoire', 
-    x: 500, 
-    y: 300, 
-    income: 100, 
-    troops: 50 
-  },
-];
+// Coût d'expansion (ligne ~180)
+const cost = 50; // Changer ici
+
+// Coût de recrutement (dans reinforceCell)
+const cost = troopCount * 10; // 10 or par troupe
+```
+
+### Modifier la condition de victoire
+
+Dans `server/game/GameRoomOpenFront.js`, méthode `checkVictory()` :
+
+```javascript
+// Ligne ~270
+const victoryThreshold = totalLandCells * 0.8; // 80% -> changer ici
+```
+
+### Changer la vitesse du jeu
+
+Dans `server/game/GameRoomOpenFront.js` :
+
+```javascript
+// Ligne 14
+this.tickRate = 100; // En millisecondes (100 = 10 ticks/seconde)
 ```
 
 ## 🐛 Résolution de Problèmes
 
 ### Le serveur ne démarre pas
-```bash
-# Vérifier que le port 3000 est libre
-lsof -i :3000
 
-# Utiliser un autre port
-PORT=8080 npm start
+```bash
+# Vérifier que Node.js est installé
+node --version
+
+# Réinstaller les dépendances
+rm -rf node_modules package-lock.json
+npm install
+
+# Vérifier que le port est libre
+lsof -i :3000
 ```
 
 ### Les joueurs ne se connectent pas
+
 - Vérifiez que le serveur est accessible
-- Vérifiez les règles de pare-feu
-- En production, utilisez HTTPS
+- En local, utilisez `localhost:3000`
+- En production, vérifiez les règles de pare-feu
+- Assurez-vous que WebSocket est activé
 
-### Lag ou latence
-- Réduire le `tickRate` dans le serveur
-- Optimiser le nombre de bots
-- Vérifier la connexion réseau
+### La carte ne s'affiche pas
 
-## 🔐 Sécurité
+- Ouvrez la console du navigateur (F12)
+- Vérifiez les erreurs JavaScript
+- Rafraîchissez la page (Ctrl+F5)
 
-Pour une version production, ajoutez :
+### Performance lente
 
-1. **Rate limiting**
-```bash
-npm install express-rate-limit
-```
+- Réduisez la taille de la grille (ligne 17 de GameRoomOpenFront.js)
+- Augmentez le tickRate (moins de mises à jour par seconde)
+- Activez la compression dans server.js
 
-2. **Validation des entrées**
-```bash
-npm install express-validator
-```
+## 🔧 Développement
 
-3. **CORS configuré**
-```javascript
-const cors = require('cors');
-app.use(cors({ origin: 'https://votredomaine.com' }));
-```
+### Ajouter des fonctionnalités
+
+Le code est modulaire pour faciliter l'ajout de features :
+
+- **Nouvelles actions** : Ajoutez des événements dans `server/server.js`
+- **Nouveau rendu** : Modifiez `client/js/mapRenderer.js`
+- **Nouvelle UI** : Éditez `client/js/ui.js`
+- **Logique de jeu** : Changez `server/game/GameRoomOpenFront.js`
+
+### Structure des événements Socket.io
+
+**Client → Serveur :**
+- `createRoom` - Créer une partie
+- `joinRoom` - Rejoindre une partie
+- `startGame` - Démarrer (phase placement)
+- `placeBase` - Placer sa base
+- `expandTerritory` - Étendre son territoire
+- `reinforceCell` - Renforcer une cellule
+
+**Serveur → Client :**
+- `roomCreated` - Room créée
+- `roomJoined` - Room rejointe
+- `gameStarted` - Partie démarrée (placement)
+- `phaseChanged` - Changement de phase
+- `fullState` - État complet du jeu
+- `gridUpdate` - Mise à jour (delta)
+- `gameOver` - Fin de partie
 
 ## 📈 Améliorations Futures
 
+- [ ] Véritable carte d'Europe (avec GeoJSON)
 - [ ] Système d'alliances fonctionnel
-- [ ] Commerce entre joueurs
-- [ ] Technologie et upgrades
-- [ ] Carte du monde plus détaillée
-- [ ] Système de classement global
 - [ ] Chat en jeu
-- [ ] Modes de jeu alternatifs
+- [ ] Replays des parties
+- [ ] Classement global
+- [ ] Modes de jeu alternatifs (1v1, équipes, etc.)
+- [ ] Technologies/upgrades
+- [ ] Événements aléatoires
+- [ ] IA des bots améliorée
 
-Bon jeu ! 🎮🌍
+🎮 Bon jeu ! Conquérez l'Europe ! 🌍
+
+**Debug mode :** Tapez `debugGame()` dans la console du navigateur pour voir l'état du jeu.

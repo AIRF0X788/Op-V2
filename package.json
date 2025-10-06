@@ -1,0 +1,30 @@
+{
+  "name": "worldconquest-io",
+  "version": "1.0.0",
+  "description": "Jeu de stratégie multijoueur .io de conquête mondiale",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "game",
+    "io",
+    "strategy",
+    "multiplayer",
+    "conquest"
+  ],
+  "author": "Votre nom",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.5.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

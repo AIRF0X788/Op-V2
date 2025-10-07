@@ -1,4 +1,4 @@
-// client/js/game.js - Gestionnaire principal du jeu style OpenFront
+// client/js/game.js
 
 class Game {
   constructor() {
@@ -6,108 +6,77 @@ class Game {
     this.placementManager = null;
     this.ui = null;
     this.currentGameState = null;
-    this.currentPhase = 'menu'; // menu, lobby, placement, playing
+    this.currentPhase = 'menu';
     this.mapData = null;
-    this.placedBases = new Map();
+    this.selectedCell = null;
   }
 
   async init() {
-    console.log('🎮 Initialisation du jeu WorldConquest.io...');
+    console.log('🎮 Initialisation WorldConquest.io...');
 
-    // Créer les managers
     this.ui = new UIManager();
     this.ui.init();
 
-    // Connecter au serveur
     try {
       await network.connect();
-      console.log('✅ Connexion au serveur réussie');
+      console.log('✅ Connecté au serveur');
     } catch (error) {
-      console.error('❌ Erreur de connexion:', error);
-      network.showNotification('Impossible de se connecter au serveur', 'error');
+      console.error('❌ Erreur connexion:', error);
+      network.showNotification('Impossible de se connecter', 'error');
       return;
     }
 
-    // Configurer les événements réseau
     this.setupNetworkEvents();
   }
 
   setupNetworkEvents() {
-    // Room créée
     network.on('roomCreated', (data) => {
-      console.log('Room créée, passage au lobby');
       this.currentPhase = 'lobby';
       this.ui.switchScreen('lobbyScreen');
       this.ui.updateLobby(data.room);
     });
 
-    // Room rejointe
     network.on('roomJoined', (data) => {
-      console.log('Room rejointe, passage au lobby');
       this.currentPhase = 'lobby';
       this.ui.switchScreen('lobbyScreen');
       this.ui.updateLobby(data.room);
     });
 
-    // Joueur a rejoint
     network.on('playerJoined', (data) => {
       this.ui.updateLobby(data.room);
     });
 
-    // Phase de placement démarrée
     network.on('gameStarted', (data) => {
-      console.log('🎯 Phase de placement démarrée');
+      console.log('🎯 Phase de placement');
       this.startPlacementPhase(data.room);
     });
 
-    // État complet reçu
     network.on('fullState', (state) => {
-      console.log('📦 État complet reçu', state);
       this.handleFullState(state);
     });
 
-    // Mise à jour de la grille (delta)
     network.on('gridUpdate', (data) => {
       this.handleGridUpdate(data);
     });
 
-    // Changement de phase
     network.on('phaseChanged', (data) => {
-      console.log('📍 Changement de phase:', data.phase);
       if (data.phase === 'playing') {
         this.startPlayingPhase();
       }
     });
 
-    // Base placée
     network.on('basePlaced', (data) => {
       if (this.placementManager) {
         this.placementManager.onBasePlaced(data);
       }
-      
-      // Enregistrer les bases placées
-      if (data.playerId && data.baseX !== undefined && data.baseY !== undefined) {
-        this.placedBases.set(data.playerId, { x: data.baseX, y: data.baseY });
-        
-        // Mettre à jour le gameState si on est en phase de placement
-        if (this.currentGameState && this.currentGameState.players) {
-          const player = this.currentGameState.players.find(p => p.id === data.playerId);
-          if (player) {
-            player.baseX = data.baseX;
-            player.baseY = data.baseY;
-          }
-        }
-      }
     });
 
-    // Mise à jour des placements
     network.on('placementUpdate', (data) => {
       if (this.placementManager) {
         this.placementManager.updatePlacementInfo(data.playersPlaced, data.totalPlayers);
       }
     });
 
-    // Résultat d'action
     network.on('actionResult', (data) => {
       if (!data.success) {
         network.showNotification(data.reason || 'Action impossible', 'error');
@@ -116,7 +85,6 @@ class Game {
       }
     });
 
-    // Fin de partie
     network.on('gameOver', (data) => {
       this.onGameOver(data);
     });
@@ -127,14 +95,11 @@ class Game {
     this.currentGameState = roomData;
     this.mapData = roomData.mapData;
 
-    // Passer à l'écran de placement
     this.ui.switchScreen('placementScreen');
 
-    // Initialiser le gestionnaire de placement
     this.placementManager = new PlacementManager();
-    this.placementManager.init(this.mapData, roomData);
+    this.placementManager.init(this.mapData);
 
-    // Mettre à jour les compteurs
     document.getElementById('totalPlayers').textContent = roomData.players.length;
     document.getElementById('playersPlaced').textContent = roomData.playersPlaced?.length || 0;
   }
@@ -155,42 +120,32 @@ class Game {
 
   startPlayingPhase() {
     console.log('🎮 Phase de jeu démarrée');
-    console.log('📊 État du jeu:', this.currentGameState);
-    console.log('🗺️ Données de la carte:', this.mapData);
-    
     this.currentPhase = 'playing';
 
-    // Nettoyer le placement manager
     if (this.placementManager) {
       this.placementManager.cleanup();
       this.placementManager = null;
     }
 
-    // Passer à l'écran de jeu
     this.ui.switchScreen('gameScreen');
 
-    // Initialiser le renderer de jeu
     if (!this.renderer) {
       this.renderer = new MapRenderer('gameCanvas');
       this.renderer.loadMapData(this.mapData);
       this.setupGameEvents();
     }
 
-    // Centrer sur la base du joueur
     const currentPlayer = this.currentGameState?.players?.find(p => p.id === network.playerId);
     if (currentPlayer && currentPlayer.baseX !== null) {
-      console.log(`📍 Centrage sur base: (${currentPlayer.baseX}, ${currentPlayer.baseY})`);
       this.renderer.centerOnBase(currentPlayer.baseX, currentPlayer.baseY);
     }
 
-    // Démarrer la boucle de rendu
     this.startGameLoop();
   }
 
   setupGameEvents() {
     const canvas = document.getElementById('gameCanvas');
 
-    // Clic pour sélectionner une cellule
     canvas.addEventListener('click', (e) => {
       if (this.currentPhase !== 'playing') return;
 
@@ -201,11 +156,31 @@ class Game {
       const cell = this.renderer.getCellAtPosition(x, y);
       
       if (cell) {
-        this.selectCell(cell.x, cell.y);
+        this.onCellClick(cell.x, cell.y);
       }
     });
 
-    // Touche Echap pour déselectionner
+    // Hover pour tooltip
+    canvas.addEventListener('mousemove', (e) => {
+      if (this.currentPhase !== 'playing') return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const cell = this.renderer.getCellAtPosition(x, y);
+      
+      if (cell) {
+        this.ui.showCellTooltip(e.clientX, e.clientY, cell.x, cell.y, this.mapData, this.currentGameState);
+      } else {
+        this.ui.hideCellTooltip();
+      }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      this.ui.hideCellTooltip();
+    });
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.currentPhase === 'playing') {
         this.deselectCell();
@@ -213,13 +188,45 @@ class Game {
     });
   }
 
+  onCellClick(x, y) {
+    const cell = this.mapData.cells.find(c => c.x === x && c.y === y);
+    if (!cell || cell.t !== 'l') return;
+
+    // Si c'est notre territoire, sélectionner
+    if (cell.o === network.playerId) {
+      this.selectCell(x, y);
+    } 
+    // Si c'est adjacent, tenter d'étendre
+    else if (this.isAdjacentToPlayer(x, y)) {
+      this.expandToCell(x, y);
+    }
+    // Sinon, juste sélectionner pour voir les infos
+    else {
+      this.selectCell(x, y);
+    }
+  }
+
+  isAdjacentToPlayer(x, y) {
+    const directions = [
+      [-1,-1],[0,-1],[1,-1],
+      [-1,0],[1,0],
+      [-1,1],[0,1],[1,1]
+    ];
+
+    return directions.some(([dx, dy]) => {
+      const neighbor = this.mapData.cells.find(c => c.x === x + dx && c.y === y + dy);
+      return neighbor && neighbor.o === network.playerId;
+    });
+  }
+
   selectCell(x, y) {
-    console.log(`Cellule sélectionnée: (${x}, ${y})`);
+    this.selectedCell = { x, y };
     this.renderer.setSelectedCell({ x, y });
     this.ui.showCellPanel(x, y, this.mapData, this.currentGameState);
   }
 
   deselectCell() {
+    this.selectedCell = null;
     this.renderer.setSelectedCell(null);
     this.ui.hideCellPanel();
   }
@@ -227,34 +234,39 @@ class Game {
   handleGridUpdate(data) {
     if (!this.currentGameState) return;
 
-    // Appliquer les changements
     data.changes.forEach(change => {
-      // Trouver et mettre à jour la cellule dans mapData
       const cellIndex = this.mapData.cells.findIndex(c => c.x === change.x && c.y === change.y);
       if (cellIndex !== -1) {
         this.mapData.cells[cellIndex].o = change.owner;
         this.mapData.cells[cellIndex].tr = change.troops;
+        this.mapData.cells[cellIndex].b = change.building;
       } else if (change.owner) {
-        // Nouvelle cellule conquise
         this.mapData.cells.push({
           x: change.x,
           y: change.y,
           t: 'l',
           o: change.owner,
-          tr: change.troops
+          tr: change.troops,
+          b: change.building
         });
       }
     });
 
-    // Mettre à jour les joueurs
     if (data.players) {
       this.currentGameState.players = data.players;
       
-      // Mettre à jour le HUD
       const currentPlayer = data.players.find(p => p.id === network.playerId);
       if (currentPlayer) {
-        this.ui.updateGameHUD(currentPlayer);
+        this.ui.updateGameHUD(currentPlayer, this.mapData);
       }
+      
+      // Mettre à jour le leaderboard
+      this.ui.updateLeaderboard(data.players, this.mapData);
+    }
+
+    // Mettre à jour le panneau si une cellule est sélectionnée
+    if (this.selectedCell) {
+      this.ui.showCellPanel(this.selectedCell.x, this.selectedCell.y, this.mapData, this.currentGameState);
     }
   }
 
@@ -263,16 +275,13 @@ class Game {
 
     this.currentGameState = state;
 
-    // Mettre à jour le HUD
     const currentPlayer = state.players.find(p => p.id === network.playerId);
     if (currentPlayer) {
-      this.ui.updateGameHUD(currentPlayer);
+      this.ui.updateGameHUD(currentPlayer, this.mapData);
     }
 
-    // Si une cellule est sélectionnée, mettre à jour son panneau
-    if (this.renderer && this.renderer.selectedCell) {
-      const { x, y } = this.renderer.selectedCell;
-      this.ui.showCellPanel(x, y, this.mapData, state);
+    if (this.selectedCell) {
+      this.ui.showCellPanel(this.selectedCell.x, this.selectedCell.y, this.mapData, state);
     }
   }
 
@@ -290,12 +299,11 @@ class Game {
   onGameOver(data) {
     const isWinner = data.winner.id === network.playerId;
     const message = isWinner 
-      ? `🎉 Félicitations ! Vous avez conquis l'Europe !`
+      ? `🎉 Victoire ! Vous avez conquis l'Europe !`
       : `👑 ${data.winner.name} a conquis l'Europe !`;
     
     network.showNotification(message, isWinner ? 'success' : 'info');
     
-    // Afficher les stats finales
     setTimeout(() => {
       this.ui.showGameOverModal(data);
     }, 2000);
@@ -310,12 +318,12 @@ class Game {
     });
   }
 
-  reinforceCell(x, y, count) {
-    network.socket.emit('reinforceCell', {
+  buildBuilding(x, y, buildingType) {
+    network.socket.emit('buildBuilding', {
       roomCode: network.currentRoom,
       x,
       y,
-      count
+      buildingType
     });
   }
 
@@ -332,5 +340,4 @@ class Game {
   }
 }
 
-// Instance globale
 const game = new Game();

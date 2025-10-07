@@ -13,18 +13,14 @@ const io = socketIo(server, {
   }
 });
 
-// Servir les fichiers statiques du client
 app.use(express.static(path.join(__dirname, '../client')));
 
-// Route principale
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
-// Gestion des rooms de jeu
 const gameRooms = new Map();
 
-// Fonction pour générer un code de room unique
 function generateRoomCode() {
   let code;
   do {
@@ -33,11 +29,9 @@ function generateRoomCode() {
   return code;
 }
 
-// Gestion des connexions Socket.io
 io.on('connection', (socket) => {
-  console.log(`[${new Date().toLocaleTimeString()}] 🔗 Client connecté: ${socket.id}`);
+  console.log(`✅ Client connecté: ${socket.id}`);
 
-  // Créer une nouvelle room
   socket.on('createRoom', (playerName) => {
     try {
       const roomCode = generateRoomCode();
@@ -48,14 +42,13 @@ io.on('connection', (socket) => {
       socket.join(roomCode);
       
       socket.emit('roomCreated', { code: roomCode, room: room.getState() });
-      console.log(`[${new Date().toLocaleTimeString()}] ✅ Room créée: ${roomCode} par ${playerName}`);
+      console.log(`🎮 Room créée: ${roomCode}`);
     } catch (error) {
       console.error('❌ Erreur création room:', error);
-      socket.emit('error', 'Erreur lors de la création de la room');
+      socket.emit('error', 'Erreur lors de la création');
     }
   });
 
-  // Rejoindre une room existante
   socket.on('joinRoom', ({ code, playerName }) => {
     try {
       const room = gameRooms.get(code);
@@ -66,12 +59,12 @@ io.on('connection', (socket) => {
       }
 
       if (room.gameState !== 'lobby') {
-        socket.emit('error', 'La partie a déjà commencé');
+        socket.emit('error', 'Partie déjà commencée');
         return;
       }
 
       if (room.players.size >= 8) {
-        socket.emit('error', 'La room est pleine');
+        socket.emit('error', 'Room pleine');
         return;
       }
 
@@ -81,14 +74,13 @@ io.on('connection', (socket) => {
       socket.emit('roomJoined', { room: room.getState() });
       io.to(code).emit('playerJoined', { room: room.getState() });
       
-      console.log(`[${new Date().toLocaleTimeString()}] ✅ ${playerName} a rejoint la room ${code}`);
+      console.log(`👤 ${playerName} a rejoint ${code}`);
     } catch (error) {
       console.error('❌ Erreur joinRoom:', error);
-      socket.emit('error', 'Erreur lors de la connexion à la room');
+      socket.emit('error', 'Erreur lors de la connexion');
     }
   });
 
-  // Démarrer la partie (phase de placement)
   socket.on('startGame', (roomCode) => {
     try {
       const room = gameRooms.get(roomCode);
@@ -99,7 +91,7 @@ io.on('connection', (socket) => {
       }
 
       if (room.hostId !== socket.id) {
-        socket.emit('error', 'Seul l\'hôte peut démarrer la partie');
+        socket.emit('error', 'Seul l\'hôte peut démarrer');
         return;
       }
 
@@ -110,25 +102,19 @@ io.on('connection', (socket) => {
 
       if (room.startGame()) {
         io.to(roomCode).emit('gameStarted', { room: room.getState() });
-        console.log(`[${new Date().toLocaleTimeString()}] 🎯 Phase de placement démarrée dans ${roomCode}`);
+        console.log(`🎯 Phase de placement: ${roomCode}`);
       }
     } catch (error) {
       console.error('❌ Erreur startGame:', error);
-      socket.emit('error', 'Erreur lors du démarrage de la partie');
+      socket.emit('error', 'Erreur lors du démarrage');
     }
   });
 
-  // Placer la base
   socket.on('placeBase', ({ roomCode, x, y }) => {
     try {
       const room = gameRooms.get(roomCode);
       
-      if (!room) {
-        socket.emit('error', 'Room non trouvée');
-        return;
-      }
-
-      if (room.gameState !== 'placement') {
+      if (!room || room.gameState !== 'placement') {
         socket.emit('error', 'Phase de placement terminée');
         return;
       }
@@ -138,30 +124,23 @@ io.on('connection', (socket) => {
       if (result.success) {
         const player = room.players.get(socket.id);
         
-        // Notifier TOUS les joueurs (pas juste celui qui a placé)
-        io.to(roomCode).emit('basePlaced', {
+        socket.emit('basePlaced', {
           success: true,
           baseX: player.baseX,
           baseY: player.baseY,
-          playerId: socket.id,
-          playerName: player.name
+          playerId: socket.id
         });
         
-        // Notifier tous les joueurs du nombre de placements
         io.to(roomCode).emit('placementUpdate', {
           playersPlaced: room.playersPlaced.size,
           totalPlayers: room.players.size
         });
         
-        // Envoyer l'état complet mis à jour
-        room.broadcastFullState();
-        
-        console.log(`[${new Date().toLocaleTimeString()}] 🎯 ${player.name} a placé sa base en (${x}, ${y})`);
+        console.log(`📍 ${player.name} base placée en (${x}, ${y})`);
       } else {
         socket.emit('basePlaced', {
           success: false,
-          reason: result.reason,
-          playerId: socket.id
+          reason: result.reason
         });
       }
     } catch (error) {
@@ -170,33 +149,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Étendre le territoire
   socket.on('expandTerritory', ({ roomCode, x, y }) => {
     try {
       const room = gameRooms.get(roomCode);
       
-      if (!room) {
-        socket.emit('error', 'Room non trouvée');
-        return;
-      }
-
-      if (room.gameState !== 'playing') {
-        socket.emit('error', 'La partie n\'est pas en cours');
+      if (!room || room.gameState !== 'playing') {
+        socket.emit('error', 'Partie non en cours');
         return;
       }
 
       const result = room.expandTerritory(socket.id, x, y);
       
+      socket.emit('actionResult', result);
+      
       if (result.success) {
-        socket.emit('actionResult', {
-          success: true,
-          message: result.conquered ? 'Territoire conquis !' : 'Territoire étendu'
-        });
-      } else {
-        socket.emit('actionResult', {
-          success: false,
-          reason: result.reason
-        });
+        console.log(`➕ Territoire étendu par ${socket.id}`);
       }
     } catch (error) {
       console.error('❌ Erreur expandTerritory:', error);
@@ -204,41 +171,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Renforcer une cellule
-  socket.on('reinforceCell', ({ roomCode, x, y, count }) => {
+  socket.on('buildBuilding', ({ roomCode, x, y, buildingType }) => {
     try {
       const room = gameRooms.get(roomCode);
       
-      if (!room) {
-        socket.emit('error', 'Room non trouvée');
+      if (!room || room.gameState !== 'playing') {
+        socket.emit('error', 'Partie non en cours');
         return;
       }
 
-      if (room.gameState !== 'playing') {
-        socket.emit('error', 'La partie n\'est pas en cours');
-        return;
-      }
-
-      const result = room.reinforceCell(socket.id, x, y, count);
+      const result = room.buildBuilding(socket.id, x, y, buildingType);
+      
+      socket.emit('actionResult', result);
       
       if (result.success) {
-        socket.emit('actionResult', {
-          success: true,
-          message: `${count} troupes ajoutées`
-        });
-      } else {
-        socket.emit('actionResult', {
-          success: false,
-          reason: result.reason
-        });
+        console.log(`🏗️ Bâtiment ${buildingType} construit`);
       }
     } catch (error) {
-      console.error('❌ Erreur reinforceCell:', error);
-      socket.emit('error', 'Erreur lors du renforcement');
+      console.error('❌ Erreur buildBuilding:', error);
+      socket.emit('error', 'Erreur lors de la construction');
     }
   });
 
-  // Demander l'état complet
   socket.on('requestFullState', (roomCode) => {
     const room = gameRooms.get(roomCode);
     if (room) {
@@ -246,31 +200,25 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Déconnexion
   socket.on('disconnect', () => {
-    console.log(`[${new Date().toLocaleTimeString()}] ❌ Client déconnecté: ${socket.id}`);
+    console.log(`❌ Déconnexion: ${socket.id}`);
     
-    // Trouver et nettoyer les rooms
     gameRooms.forEach((room, code) => {
       if (room.players.has(socket.id)) {
         const isEmpty = room.removePlayer(socket.id);
         
         if (isEmpty) {
-          // La room est vide, la supprimer
           room.stopGame();
           gameRooms.delete(code);
-          console.log(`[${new Date().toLocaleTimeString()}] 🗑️ Room ${code} supprimée (vide)`);
+          console.log(`🗑️ Room ${code} supprimée`);
         } else {
-          // Notifier les autres joueurs
           io.to(code).emit('playerLeft', { playerId: socket.id });
           
-          // Si c'était l'hôte, transférer l'hôte
           if (room.hostId === socket.id) {
             const newHost = Array.from(room.players.keys())[0];
             if (newHost) {
               room.hostId = newHost;
               io.to(code).emit('info', 'Nouvel hôte désigné');
-              console.log(`[${new Date().toLocaleTimeString()}] 👑 Nouvel hôte: ${newHost}`);
             }
           }
         }
@@ -279,68 +227,34 @@ io.on('connection', (socket) => {
   });
 });
 
-// Endpoint pour les statistiques du serveur
-app.get('/api/stats', (req, res) => {
-  const stats = {
-    activeRooms: gameRooms.size,
-    activePlayers: Array.from(gameRooms.values()).reduce((sum, room) => sum + room.players.size, 0),
-    rooms: Array.from(gameRooms.entries()).map(([code, room]) => ({
-      code,
-      players: room.players.size,
-      state: room.gameState
-    }))
-  };
-  res.json(stats);
-});
-
-// Nettoyage des rooms inactives toutes les 10 minutes
+// Cleanup des rooms inactives
 setInterval(() => {
   const now = Date.now();
-  const timeout = 60 * 60 * 1000; // 1 heure
+  const timeout = 60 * 60 * 1000;
 
   gameRooms.forEach((room, code) => {
-    if (room.gameState === 'finished' || 
-        (room.gameState === 'lobby' && room.players.size === 0)) {
+    if (room.gameState === 'finished' || room.players.size === 0) {
       const roomAge = room.startTime ? now - room.startTime : Infinity;
       
       if (roomAge > timeout || room.players.size === 0) {
         room.stopGame();
         gameRooms.delete(code);
-        console.log(`[${new Date().toLocaleTimeString()}] 🗑️ Room ${code} nettoyée (inactive)`);
+        console.log(`🗑️ Room ${code} nettoyée`);
       }
     }
   });
 }, 10 * 60 * 1000);
 
-// Gestion des erreurs
-process.on('uncaughtException', (error) => {
-  console.error('❌ Erreur non gérée:', error);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Promise rejetée:', reason);
-});
-
-// Démarrage du serveur
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`
-╔════════════════════════════════════════════════════════╗
-║                                                        ║
-║       🌍 WorldConquest.io Server Started 🌍           ║
-║              Style OpenFront.io                        ║
-║                                                        ║
-║  Port: ${PORT.toString().padEnd(45)}║
-║  Environment: ${(process.env.NODE_ENV || 'development').padEnd(37)}║
-║                                                        ║
-║  Local:   http://localhost:${PORT.toString().padEnd(25)}║
-║                                                        ║
-║  🎮 Fonctionnalités:                                   ║
-║  • Placement de base sur carte                        ║
-║  • Extension de territoire cellule par cellule        ║
-║  • Combat tactique                                     ║
-║  • Système économique                                  ║
-║                                                        ║
-╚════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════╗
+║  🌍 WorldConquest.io - OpenFront    ║
+║                                      ║
+║  Port: ${PORT.toString().padEnd(29)}║
+║  Local: http://localhost:${PORT.toString().padEnd(10)}║
+║                                      ║
+║  ✨ Ready to conquer!                ║
+╚══════════════════════════════════════╝
   `);
 });

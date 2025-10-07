@@ -1,9 +1,9 @@
-// client/js/ui.js - Gestion de l'interface utilisateur
+// client/js/ui.js
 
 class UIManager {
   constructor() {
     this.currentScreen = 'menuScreen';
-    this.currentCell = null;
+    this.panelCollapsed = false;
   }
 
   init() {
@@ -12,7 +12,6 @@ class UIManager {
     this.setupGameScreen();
   }
 
-  // === MENU PRINCIPAL ===
   setupMenuScreen() {
     const createBtn = document.getElementById('createRoomBtn');
     const joinBtn = document.getElementById('joinRoomBtn');
@@ -21,12 +20,8 @@ class UIManager {
 
     createBtn.addEventListener('click', () => {
       const playerName = document.getElementById('playerName').value.trim();
-      if (!playerName) {
-        network.showNotification('Veuillez entrer un pseudo', 'warning');
-        return;
-      }
-      if (playerName.length < 2) {
-        network.showNotification('Le pseudo doit faire au moins 2 caractères', 'warning');
+      if (!playerName || playerName.length < 2) {
+        network.showNotification('Nom invalide (min 2 caractères)', 'warning');
         return;
       }
       network.createRoom(playerName);
@@ -41,12 +36,12 @@ class UIManager {
       const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
       
       if (!playerName || !roomCode) {
-        network.showNotification('Veuillez remplir tous les champs', 'warning');
+        network.showNotification('Remplir tous les champs', 'warning');
         return;
       }
       
       if (roomCode.length !== 6) {
-        network.showNotification('Le code doit faire 6 caractères', 'warning');
+        network.showNotification('Code invalide (6 caractères)', 'warning');
         return;
       }
       
@@ -54,36 +49,28 @@ class UIManager {
     });
   }
 
-  // === LOBBY ===
   setupLobbyScreen() {
-    const startBtn = document.getElementById('startGameBtn');
-    const leaveBtn = document.getElementById('leaveLobbyBtn');
-    const copyBtn = document.getElementById('copyCodeBtn');
-
-    startBtn.addEventListener('click', () => {
+    document.getElementById('startGameBtn').addEventListener('click', () => {
       network.startGame();
     });
 
-    leaveBtn.addEventListener('click', () => {
-      if (confirm('Voulez-vous vraiment quitter le lobby ?')) {
-        this.switchScreen('menuScreen');
+    document.getElementById('leaveLobbyBtn').addEventListener('click', () => {
+      if (confirm('Quitter le lobby ?')) {
         location.reload();
       }
     });
 
-    copyBtn.addEventListener('click', () => {
+    document.getElementById('copyCodeBtn').addEventListener('click', () => {
       const code = document.getElementById('displayRoomCode').textContent;
       navigator.clipboard.writeText(code).then(() => {
-        network.showNotification('Code copié dans le presse-papier !', 'success');
+        network.showNotification('Code copié !', 'success');
       });
     });
   }
 
   updateLobby(roomData) {
-    // Afficher le code de la room
     document.getElementById('displayRoomCode').textContent = roomData.code;
 
-    // Afficher les joueurs
     const playersList = document.getElementById('playersList');
     const playerCount = document.getElementById('playerCount');
     playersList.innerHTML = '';
@@ -96,12 +83,11 @@ class UIManager {
       card.innerHTML = `
         <div class="player-color-dot" style="background: ${player.color}"></div>
         <span>${player.name}</span>
-        ${player.id === roomData.hostId ? '<span>👑 Hôte</span>' : ''}
+        ${player.id === roomData.hostId ? '<span>👑</span>' : ''}
       `;
       playersList.appendChild(card);
     });
 
-    // Afficher le bouton de démarrage seulement pour l'hôte
     const startBtn = document.getElementById('startGameBtn');
     if (network.playerId === roomData.hostId) {
       startBtn.style.display = 'block';
@@ -111,127 +97,129 @@ class UIManager {
     }
   }
 
-  // === ÉCRAN DE JEU ===
   setupGameScreen() {
-    // Boutons du HUD
     document.getElementById('centerBaseBtn').addEventListener('click', () => {
       game.centerOnBase();
     });
 
-    document.getElementById('statsBtn').addEventListener('click', () => {
-      this.showStatsModal();
+    document.getElementById('togglePanelBtn').addEventListener('click', () => {
+      this.toggleSidePanel();
     });
 
     document.getElementById('leaveGameBtn').addEventListener('click', () => {
-      if (confirm('Voulez-vous vraiment quitter la partie ?')) {
-        this.switchScreen('menuScreen');
+      if (confirm('Quitter la partie ?')) {
         location.reload();
       }
     });
 
-    // Actions du panneau de cellule
-    document.getElementById('expandBtn').addEventListener('click', () => {
-      this.handleExpand();
+    // Bouton d'expansion
+    document.getElementById('expandCellBtn').addEventListener('click', () => {
+      if (game.selectedCell) {
+        game.expandToCell(game.selectedCell.x, game.selectedCell.y);
+      }
     });
 
-    document.getElementById('reinforceBtn').addEventListener('click', () => {
-      this.handleReinforce();
-    });
-
-    // Fermeture des modals
-    document.querySelectorAll('.close-modal').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.target.closest('.modal').classList.add('hidden');
-      });
-    });
-
-    // Fermer modal en cliquant à l'extérieur
-    document.querySelectorAll('.modal').forEach(modal => {
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          modal.classList.add('hidden');
+    // Boutons de bâtiments
+    document.querySelectorAll('.building-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const buildingType = btn.dataset.building;
+        if (game.selectedCell) {
+          game.buildBuilding(game.selectedCell.x, game.selectedCell.y, buildingType);
         }
       });
     });
   }
 
-  updateGameHUD(player) {
+  updateGameHUD(player, mapData) {
     if (!player) return;
 
     document.getElementById('hudPlayerName').textContent = player.name;
     document.getElementById('hudPlayerColor').style.background = player.color;
-    document.getElementById('hudGold').textContent = Math.floor(player.gold);
-    document.getElementById('hudIncome').textContent = Math.floor(player.income);
+    document.getElementById('hudGold').textContent = player.gold;
+    document.getElementById('hudIncome').textContent = player.income;
+    document.getElementById('hudTroops').textContent = player.troops;
     
-    // Calculer le nombre de cellules
-    const cells = game.mapData?.cells?.filter(c => c.o === player.id).length || 0;
+    const cells = mapData?.cells?.filter(c => c.o === player.id).length || 0;
     document.getElementById('hudCells').textContent = cells;
-    document.getElementById('hudTroops').textContent = player.troops || 0;
+
+    // Mettre à jour les stats du panneau
+    document.getElementById('statTerritories').textContent = cells;
+    document.getElementById('statTroops').textContent = player.troops;
+    document.getElementById('statIncome').textContent = player.income;
+    document.getElementById('statGold').textContent = player.gold;
+    
+    const cities = mapData?.cells?.filter(c => c.o === player.id && c.b === 'city').length || 0;
+    document.getElementById('statCities').textContent = cities;
   }
 
   showCellPanel(x, y, mapData, gameState) {
-    const panel = document.getElementById('cellPanel');
-    panel.classList.remove('hidden');
+    const section = document.getElementById('cellInfoSection');
+    section.classList.remove('hidden');
 
-    this.currentCell = { x, y };
-
-    // Trouver les données de la cellule
     const cellData = mapData.cells.find(c => c.x === x && c.y === y);
-    
     if (!cellData) {
-      panel.classList.add('hidden');
+      section.classList.add('hidden');
       return;
     }
 
-    // Trouver le propriétaire
-    let owner = null;
-    let ownerName = 'Neutre';
+    let ownerName = 'Neutral';
+    let isOurs = false;
+    
     if (cellData.o) {
-      owner = gameState.players.find(p => p.id === cellData.o);
-      ownerName = owner ? owner.name : 'Inconnu';
+      const owner = gameState.players.find(p => p.id === cellData.o);
+      ownerName = owner ? owner.name : 'Unknown';
+      isOurs = cellData.o === network.playerId;
     }
 
-    document.getElementById('cellInfo').textContent = `Cellule (${x}, ${y})`;
     document.getElementById('cellOwner').textContent = ownerName;
     document.getElementById('cellTroops').textContent = cellData.tr || 0;
-    document.getElementById('cellPosition').textContent = `${x}, ${y}`;
-
-    // Déterminer les actions possibles
-    const isOurs = cellData.o === network.playerId;
-    const isAdjacent = this.isCellAdjacentToPlayer(x, y, network.playerId, mapData);
-    const isNeutral = !cellData.o;
-    const isEnemy = cellData.o && cellData.o !== network.playerId;
+    
+    const buildingNames = {
+      city: '🏛️ City',
+      port: '⚓ Port',
+      outpost: '🏰 Outpost',
+      barracks: '⚔️ Barracks'
+    };
+    document.getElementById('cellBuilding').textContent = cellData.b ? buildingNames[cellData.b] : 'None';
 
     // Bouton d'expansion
-    const expandBtn = document.getElementById('expandBtn');
+    const expandBtn = document.getElementById('expandCellBtn');
+    const isAdjacent = this.isCellAdjacentToPlayer(x, y, network.playerId, mapData);
+
     if (isOurs) {
-      expandBtn.disabled = true;
-      expandBtn.textContent = '✅ Votre territoire';
+      expandBtn.style.display = 'none';
     } else if (isAdjacent) {
+      expandBtn.style.display = 'block';
       expandBtn.disabled = false;
-      if (isNeutral) {
-        expandBtn.textContent = '➕ Conquérir (50💰)';
-        expandBtn.className = 'btn btn-primary';
-      } else if (isEnemy) {
-        expandBtn.textContent = '⚔️ Attaquer (50💰)';
+      if (cellData.o) {
+        expandBtn.textContent = `⚔️ Attack (Cost: 5 troops)`;
         expandBtn.className = 'btn btn-danger';
+      } else {
+        expandBtn.textContent = `➕ Expand (Cost: 5 troops)`;
+        expandBtn.className = 'btn btn-primary';
       }
     } else {
+      expandBtn.style.display = 'block';
       expandBtn.disabled = true;
-      expandBtn.textContent = '❌ Pas adjacent';
+      expandBtn.textContent = '❌ Not adjacent';
     }
 
-    // Renforcement
-    document.getElementById('reinforceBtn').disabled = !isOurs;
-    document.getElementById('reinforceCount').disabled = !isOurs;
+    // Bâtiments disponibles seulement sur notre territoire
+    const buildingBtns = document.querySelectorAll('.building-btn');
+    buildingBtns.forEach(btn => {
+      btn.disabled = !isOurs || cellData.b !== null;
+    });
+  }
+
+  hideCellPanel() {
+    document.getElementById('cellInfoSection').classList.add('hidden');
   }
 
   isCellAdjacentToPlayer(x, y, playerId, mapData) {
-    // Vérifier les 8 voisins
     const directions = [
-      [-1, -1], [0, -1], [1, -1],
-      [-1, 0],           [1, 0],
-      [-1, 1],  [0, 1],  [1, 1]
+      [-1,-1],[0,-1],[1,-1],
+      [-1,0],[1,0],
+      [-1,1],[0,1],[1,1]
     ];
 
     return directions.some(([dx, dy]) => {
@@ -240,148 +228,84 @@ class UIManager {
     });
   }
 
-  hideCellPanel() {
-    document.getElementById('cellPanel').classList.add('hidden');
-    this.currentCell = null;
-  }
-
-  handleExpand() {
-    if (!this.currentCell) return;
-
-    const { x, y } = this.currentCell;
-    game.expandToCell(x, y);
-  }
-
-  handleReinforce() {
-    if (!this.currentCell) return;
-
-    const count = parseInt(document.getElementById('reinforceCount').value);
-    if (isNaN(count) || count < 1) {
-      network.showNotification('Nombre invalide', 'warning');
+  showCellTooltip(mouseX, mouseY, x, y, mapData, gameState) {
+    const tooltip = document.getElementById('cellTooltip');
+    const cellData = mapData.cells.find(c => c.x === x && c.y === y);
+    
+    if (!cellData || cellData.t !== 'l') {
+      tooltip.classList.add('hidden');
       return;
     }
 
-    const { x, y } = this.currentCell;
-    game.reinforceCell(x, y, count);
+    let ownerName = 'Neutral';
+    let ownerColor = '#888';
+    
+    if (cellData.o) {
+      const owner = gameState.players.find(p => p.id === cellData.o);
+      if (owner) {
+        ownerName = owner.name;
+        ownerColor = owner.color;
+      }
+    }
+
+    const buildingNames = {
+      city: '🏛️ City',
+      port: '⚓ Port',
+      outpost: '🏰 Outpost',
+      barracks: '⚔️ Barracks'
+    };
+
+    tooltip.innerHTML = `
+      <div class="owner" style="color: ${ownerColor}">${ownerName}</div>
+      <div class="stat"><span>Position:</span><span>(${x}, ${y})</span></div>
+      <div class="stat"><span>Troops:</span><span>${cellData.tr || 0}</span></div>
+      ${cellData.b ? `<div class="stat"><span>Building:</span><span>${buildingNames[cellData.b]}</span></div>` : ''}
+    `;
+
+    tooltip.style.left = `${mouseX + 15}px`;
+    tooltip.style.top = `${mouseY + 15}px`;
+    tooltip.classList.remove('hidden');
   }
 
-  showStatsModal() {
-    const modal = document.getElementById('statsModal');
-    const content = document.getElementById('statsContent');
-    modal.classList.remove('hidden');
+  hideCellTooltip() {
+    document.getElementById('cellTooltip').classList.add('hidden');
+  }
 
-    if (!game.currentGameState) return;
-
-    const players = game.currentGameState.players.map(player => {
-      const cells = game.mapData?.cells?.filter(c => c.o === player.id).length || 0;
-      
-      return {
-        name: player.name,
-        color: player.color,
-        gold: Math.floor(player.gold),
-        income: Math.floor(player.income),
-        cells: cells,
-        troops: player.troops || 0
-      };
+  updateLeaderboard(players, mapData) {
+    const leaderboardList = document.getElementById('leaderboardList');
+    
+    const sorted = players.map(p => {
+      const cells = mapData.cells.filter(c => c.o === p.id).length;
+      return { ...p, cells };
     }).sort((a, b) => b.cells - a.cells);
 
-    content.innerHTML = `
-      <div class="stats-table">
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr style="border-bottom: 2px solid var(--border-color);">
-              <th style="padding: 0.75rem; text-align: left;">Rang</th>
-              <th style="padding: 0.75rem; text-align: left;">Joueur</th>
-              <th style="padding: 0.75rem; text-align: center;">Cellules</th>
-              <th style="padding: 0.75rem; text-align: center;">Troupes</th>
-              <th style="padding: 0.75rem; text-align: center;">Or</th>
-              <th style="padding: 0.75rem; text-align: center;">Revenu/s</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${players.map((player, index) => `
-              <tr style="border-bottom: 1px solid var(--border-color);">
-                <td style="padding: 0.75rem;">
-                  ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                </td>
-                <td style="padding: 0.75rem;">
-                  <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <div style="width: 15px; height: 15px; border-radius: 50%; background: ${player.color};"></div>
-                    ${player.name}
-                  </div>
-                </td>
-                <td style="padding: 0.75rem; text-align: center;">🏠 ${player.cells}</td>
-                <td style="padding: 0.75rem; text-align: center;">⚔️ ${player.troops}</td>
-                <td style="padding: 0.75rem; text-align: center;">💰 ${player.gold}</td>
-                <td style="padding: 0.75rem; text-align: center;">📈 ${player.income}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+    leaderboardList.innerHTML = sorted.slice(0, 5).map((p, i) => `
+      <div class="stat-row">
+        <span class="label">
+          ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+          <span style="color: ${p.color}">●</span> ${p.name}
+        </span>
+        <span class="value">${p.cells}</span>
       </div>
-    `;
+    `).join('');
+  }
+
+  toggleSidePanel() {
+    const panel = document.getElementById('sidePanel');
+    this.panelCollapsed = !this.panelCollapsed;
+    panel.classList.toggle('collapsed', this.panelCollapsed);
   }
 
   showGameOverModal(data) {
-    const modal = document.getElementById('statsModal');
-    const content = document.getElementById('statsContent');
-    modal.classList.remove('hidden');
-
-    const duration = Math.floor((data.duration || 0) / 1000);
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-
-    content.innerHTML = `
-      <div style="text-align: center; padding: 2rem;">
-        <h2 style="font-size: 3rem; margin-bottom: 1rem;">
-          ${data.winner.id === network.playerId ? '🎉' : '👑'}
-        </h2>
-        <h3 style="margin-bottom: 2rem;">
-          ${data.winner.name} a conquis l'Europe !
-        </h3>
-        <p style="margin-bottom: 2rem; color: var(--text-muted);">
-          Durée de la partie : ${minutes}m ${seconds}s
-        </p>
-        
-        <h4 style="margin: 2rem 0 1rem;">📊 Classement final</h4>
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr style="border-bottom: 2px solid var(--border-color);">
-              <th style="padding: 0.75rem;">Rang</th>
-              <th style="padding: 0.75rem;">Joueur</th>
-              <th style="padding: 0.75rem;">Cellules</th>
-              <th style="padding: 0.75rem;">Troupes</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${data.stats.map((player, index) => `
-              <tr style="border-bottom: 1px solid var(--border-color);">
-                <td style="padding: 0.75rem; text-align: center;">
-                  ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
-                </td>
-                <td style="padding: 0.75rem;">${player.name}</td>
-                <td style="padding: 0.75rem; text-align: center;">${player.cells}</td>
-                <td style="padding: 0.75rem; text-align: center;">${player.troops}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        
-        <button class="btn btn-primary btn-large" style="margin-top: 2rem;" onclick="location.reload()">
-          Nouvelle partie
-        </button>
-      </div>
-    `;
+    alert(`Game Over!\nWinner: ${data.winner.name}\nDuration: ${Math.floor(data.duration / 1000)}s`);
+    setTimeout(() => location.reload(), 2000);
   }
 
-  // === NAVIGATION ===
   switchScreen(screenId) {
-    // Cacher tous les écrans
     document.querySelectorAll('.screen').forEach(screen => {
       screen.classList.remove('active');
     });
 
-    // Afficher l'écran demandé
     const screen = document.getElementById(screenId);
     if (screen) {
       screen.classList.add('active');
@@ -390,5 +314,4 @@ class UIManager {
   }
 }
 
-// Instance globale
 const ui = new UIManager();

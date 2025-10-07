@@ -3,38 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WorldConquest.io - Style OpenFront</title>
+  <title>WorldConquest.io - OpenFront Style</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <!-- Écran de menu -->
   <div id="menuScreen" class="screen active">
     <div class="menu-container">
-      <h1 class="game-title">🌍 WorldConquest.io</h1>
-      <p class="game-subtitle">Conquérez l'Europe avec vos amis</p>
+      <h1 class="game-title">⚔️ WorldConquest</h1>
+      <p class="game-subtitle">Tactical Territory Conquest</p>
       
       <div class="menu-form">
-        <input type="text" id="playerName" placeholder="Votre pseudo" maxlength="20">
+        <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
         
         <div class="button-group">
-          <button id="createRoomBtn" class="btn btn-primary">Créer une partie</button>
-          <button id="joinRoomBtn" class="btn btn-secondary">Rejoindre une partie</button>
+          <button id="createRoomBtn" class="btn btn-primary">Create Room</button>
+          <button id="joinRoomBtn" class="btn btn-secondary">Join Room</button>
         </div>
 
         <div id="joinRoomForm" class="hidden">
-          <input type="text" id="roomCode" placeholder="Code de la room" maxlength="6">
-          <button id="confirmJoinBtn" class="btn btn-primary">Rejoindre</button>
+          <input type="text" id="roomCode" placeholder="Room Code" maxlength="6">
+          <button id="confirmJoinBtn" class="btn btn-primary">Join</button>
         </div>
       </div>
 
       <div class="info-section">
-        <h3>📜 Comment jouer ?</h3>
+        <h3>📖 How to Play</h3>
         <ul>
-          <li>🎯 Placez votre base de départ sur la carte</li>
-          <li>⚔️ Étendez votre territoire cellule par cellule</li>
-          <li>💰 Gagnez de l'or avec vos territoires</li>
-          <li>🤝 Attaquez les territoires ennemis adjacents</li>
-          <li>👑 Conquérez 80% de la carte pour gagner !</li>
+          <li>🎯 Click to place your capital</li>
+          <li>⚔️ Click adjacent cells to expand (costs troops)</li>
+          <li>🏗️ Build cities, ports, outposts</li>
+          <li>💰 Manage economy and military</li>
+          <li>👑 Conquer 80% of the map to win!</li>
         </ul>
       </div>
     </div>
@@ -43,24 +43,22 @@
   <!-- Écran de lobby -->
   <div id="lobbyScreen" class="screen">
     <div class="lobby-container">
-      <h2>🎮 Salle d'attente</h2>
+      <h2>🎮 Game Lobby</h2>
       
-      <div class="room-info">
-        <div class="room-code-display">
-          <span>Code de la room :</span>
-          <strong id="displayRoomCode"></strong>
-          <button id="copyCodeBtn" class="btn-icon" title="Copier">📋</button>
-        </div>
+      <div class="room-code-display">
+        <span>Room Code:</span>
+        <strong id="displayRoomCode"></strong>
+        <button id="copyCodeBtn" class="btn-icon" title="Copy">📋</button>
       </div>
 
       <div class="players-section">
-        <h3>Joueurs (👤 <span id="playerCount">0</span>)</h3>
-        <div id="playersList" class="players-list"></div>
+        <h3>Players (<span id="playerCount">0</span>)</h3>
+        <div id="playersList"></div>
       </div>
 
       <div class="lobby-actions">
-        <button id="startGameBtn" class="btn btn-primary btn-large">Démarrer la partie</button>
-        <button id="leaveLobbyBtn" class="btn btn-secondary">Quitter</button>
+        <button id="startGameBtn" class="btn btn-success">Start Game</button>
+        <button id="leaveLobbyBtn" class="btn btn-secondary">Leave</button>
       </div>
     </div>
   </div>
@@ -69,16 +67,14 @@
   <div id="placementScreen" class="screen">
     <div class="placement-overlay">
       <div class="placement-info">
-        <h2>🎯 Placez votre base</h2>
-        <p>Cliquez sur une zone verte pour placer votre point de départ</p>
-        <p class="placement-warning">⚠️ Choisissez stratégiquement, vous ne pourrez pas changer !</p>
+        <h2>🎯 Place Your Capital</h2>
+        <p>Click on a green cell to place your starting position</p>
+        <p class="placement-warning">⚠️ Choose strategically - you cannot change this!</p>
         <div class="placement-stats">
-          <p>Joueurs prêts: <strong><span id="playersPlaced">0</span> / <span id="totalPlayers">0</span></strong></p>
+          <p>Players Ready: <strong><span id="playersPlaced">0</span> / <span id="totalPlayers">0</span></strong></p>
         </div>
       </div>
     </div>
-    
-    <!-- Canvas pour la phase de placement -->
     <canvas id="placementCanvas"></canvas>
   </div>
 
@@ -88,70 +84,119 @@
     <div class="game-hud">
       <div class="hud-left">
         <div class="player-info">
-          <span class="player-name" id="hudPlayerName"></span>
           <span class="player-color" id="hudPlayerColor"></span>
+          <span class="player-name" id="hudPlayerName"></span>
         </div>
         <div class="resource-display">
-          <span class="resource">💰 Or: <strong id="hudGold">0</strong></span>
-          <span class="resource">📈 Revenu: <strong id="hudIncome">0</strong>/s</span>
-          <span class="resource">🏠 Cellules: <strong id="hudCells">0</strong></span>
-          <span class="resource">⚔️ Troupes: <strong id="hudTroops">0</strong></span>
+          <span class="resource">💰 <strong id="hudGold">0</strong></span>
+          <span class="resource">📈 <strong id="hudIncome">0</strong>/s</span>
+          <span class="resource">⚔️ <strong id="hudTroops">0</strong></span>
+          <span class="resource">🏠 <strong id="hudCells">0</strong></span>
         </div>
       </div>
       
       <div class="hud-right">
-        <button id="centerBaseBtn" class="btn btn-small">🎯 Centrer</button>
-        <button id="statsBtn" class="btn btn-small">📊 Stats</button>
-        <button id="leaveGameBtn" class="btn btn-small btn-danger">Quitter</button>
+        <button id="togglePanelBtn" class="btn btn-small">📊</button>
+        <button id="centerBaseBtn" class="btn btn-small">🎯</button>
+        <button id="leaveGameBtn" class="btn btn-small btn-danger">Leave</button>
       </div>
     </div>
 
     <!-- Canvas de jeu -->
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Panneau d'information de la cellule -->
-    <div id="cellPanel" class="territory-panel hidden">
-      <h3 id="cellInfo">Cellule</h3>
-      <div class="territory-stats">
-        <p>👤 Propriétaire: <span id="cellOwner">-</span></p>
-        <p>⚔️ Troupes: <span id="cellTroops">0</span></p>
-        <p>📍 Position: <span id="cellPosition">-</span></p>
-      </div>
-      
-      <div class="territory-actions">
-        <div class="action-group">
-          <button id="expandBtn" class="btn btn-primary">➕ Conquérir (50💰)</button>
+    <!-- Panneau latéral -->
+    <div id="sidePanel" class="side-panel">
+      <!-- Selected Cell Info -->
+      <div id="cellInfoSection" class="panel-section hidden">
+        <h3>Selected Cell</h3>
+        <div class="stat-row">
+          <span class="label">Owner:</span>
+          <span class="value" id="cellOwner">-</span>
         </div>
+        <div class="stat-row">
+          <span class="label">Troops:</span>
+          <span class="value" id="cellTroops">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Building:</span>
+          <span class="value" id="cellBuilding">None</span>
+        </div>
+        <button id="expandCellBtn" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+          ➕ Expand (Cost: <span id="expandCost">5</span> troops)
+        </button>
+      </div>
 
-        <div class="action-group">
-          <label>Renforcer cette cellule</label>
-          <div class="input-group">
-            <input type="number" id="reinforceCount" min="1" value="10">
-            <button id="reinforceBtn" class="btn btn-secondary">🛡️ Renforcer</button>
-          </div>
+      <!-- Buildings -->
+      <div id="buildingsSection" class="panel-section">
+        <h3>🏗️ Buildings</h3>
+        <div class="building-grid">
+          <button class="building-btn" data-building="city">
+            <div class="icon">🏛️</div>
+            <div class="name">City</div>
+            <div class="cost">💰 500</div>
+          </button>
+          <button class="building-btn" data-building="port">
+            <div class="icon">⚓</div>
+            <div class="name">Port</div>
+            <div class="cost">💰 300</div>
+          </button>
+          <button class="building-btn" data-building="outpost">
+            <div class="icon">🏰</div>
+            <div class="name">Outpost</div>
+            <div class="cost">💰 200</div>
+          </button>
+          <button class="building-btn" data-building="barracks">
+            <div class="icon">⚔️</div>
+            <div class="name">Barracks</div>
+            <div class="cost">💰 400</div>
+          </button>
         </div>
       </div>
 
-      <div class="cell-help">
-        <p><strong>💡 Conseils :</strong></p>
-        <p>• Clic gauche : Sélectionner une cellule</p>
-        <p>• Clic droit + drag : Déplacer la carte</p>
-        <p>• Molette : Zoomer/Dézoomer</p>
+      <!-- Stats -->
+      <div class="panel-section">
+        <h3>📊 Statistics</h3>
+        <div class="stat-row">
+          <span class="label">Territories:</span>
+          <span class="value" id="statTerritories">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Total Troops:</span>
+          <span class="value" id="statTroops">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Income/s:</span>
+          <span class="value" id="statIncome">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Gold:</span>
+          <span class="value" id="statGold">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Cities:</span>
+          <span class="value" id="statCities">0</span>
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="panel-section">
+        <h3>🏆 Leaderboard</h3>
+        <div id="leaderboardList"></div>
       </div>
     </div>
 
-    <!-- Modal de stats -->
-    <div id="statsModal" class="modal hidden">
-      <div class="modal-content">
-        <span class="close-modal">&times;</span>
-        <h2>📊 Statistiques de la partie</h2>
-        <div id="statsContent"></div>
-      </div>
+    <!-- Minimap -->
+    <div class="minimap-container">
+      <canvas id="minimapCanvas"></canvas>
     </div>
+
+    <!-- Cell Tooltip -->
+    <div id="cellTooltip" class="cell-tooltip hidden"></div>
   </div>
 
-  <!-- Messages de notification -->
-  <div id="notifications" class="notifications-container"></div>
+  <!-- Notifications -->
+  <div id="notifications" class="notifications"></div>
 
   <!-- Scripts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>

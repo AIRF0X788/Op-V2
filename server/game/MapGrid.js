@@ -5,9 +5,6 @@ class MapGrid {
     this.width = width;
     this.height = height;
     this.grid = [];
-    this.cellSize = 10; // Taille d'une cellule en pixels d'affichage
-    
-    // Initialiser la grille
     this.initializeGrid();
   }
 
@@ -18,23 +15,19 @@ class MapGrid {
         this.grid[y][x] = {
           x,
           y,
-          type: 'water', // water, land, mountain
+          type: 'water', // water, land
           owner: null,
           troops: 0,
-          income: 1 // Revenu de base par cellule
+          building: null // null, 'city', 'port', 'outpost', 'barracks'
         };
       }
     }
   }
 
-  // Charger une carte simplifiée d'Europe
   loadEuropeMap() {
-    // Simuler les contours de l'Europe (version simplifiée)
-    // Dans une vraie implémentation, on chargerait une image ou des données GeoJSON
-    
+    // Forme approximative de l'Europe
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
-        // Zone de l'Europe approximative
         if (this.isEuropeLand(x, y)) {
           this.grid[y][x].type = 'land';
         }
@@ -43,31 +36,35 @@ class MapGrid {
   }
 
   isEuropeLand(x, y) {
-    // Approximation simple des terres européennes
-    // Dans une vraie implémentation, utiliser des données géographiques réelles
-    
     const centerX = this.width / 2;
     const centerY = this.height / 2;
     
-    // Forme grossière de l'Europe
-    const distFromCenter = Math.sqrt(
-      Math.pow((x - centerX) / this.width * 2, 2) + 
-      Math.pow((y - centerY) / this.height * 2, 2)
-    );
+    // Distance du centre
+    const dx = (x - centerX) / this.width;
+    const dy = (y - centerY) / this.height;
+    const dist = Math.sqrt(dx * dx + dy * dy);
     
-    // Créer une forme irrégulière
-    const noise = Math.sin(x * 0.1) * Math.cos(y * 0.1) * 0.3;
+    // Forme irrégulière avec bruit
+    const noise = Math.sin(x * 0.15) * Math.cos(y * 0.15) * 0.2;
+    const threshold = 0.55 + noise;
     
-    // Europe approximative : zone centrale avec côtes irrégulières
-    if (distFromCenter < 0.6 + noise) {
-      // Exclure certaines zones (mer Méditerranée, etc.)
-      if (y > this.height * 0.7 && x > this.width * 0.4 && x < this.width * 0.6) {
-        return false; // Méditerranée
-      }
-      return true;
+    if (dist > threshold) return false;
+    
+    // Retirer la Méditerranée (sud)
+    if (y > this.height * 0.7 && x > this.width * 0.35 && x < this.width * 0.65) {
+      return false;
     }
     
-    return false;
+    // Mer du Nord (nord-ouest)
+    if (y < this.height * 0.25 && x < this.width * 0.4) {
+      const subDist = Math.sqrt(
+        Math.pow((x - this.width * 0.25) / this.width, 2) +
+        Math.pow((y - this.height * 0.15) / this.height, 2)
+      );
+      if (subDist < 0.15) return false;
+    }
+    
+    return true;
   }
 
   getCell(x, y) {
@@ -77,45 +74,27 @@ class MapGrid {
     return null;
   }
 
-  setOwner(x, y, playerId) {
-    const cell = this.getCell(x, y);
-    if (cell && cell.type === 'land') {
-      cell.owner = playerId;
-    }
-  }
-
-  addTroops(x, y, count) {
-    const cell = this.getCell(x, y);
-    if (cell) {
-      cell.troops += count;
-    }
-  }
-
   getNeighbors(x, y, includeDiagonals = true) {
     const neighbors = [];
     const directions = includeDiagonals 
-      ? [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]]
-      : [[-1, 0], [1, 0], [0, -1], [0, 1]];
+      ? [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]
+      : [[-1,0],[1,0],[0,-1],[0,1]];
     
     directions.forEach(([dx, dy]) => {
-      const nx = x + dx;
-      const ny = y + dy;
-      const cell = this.getCell(nx, ny);
+      const cell = this.getCell(x + dx, y + dy);
       if (cell) {
-        neighbors.push({ x: nx, y: ny, cell });
+        neighbors.push({ x: x + dx, y: y + dy, cell });
       }
     });
     
     return neighbors;
   }
 
-  // Vérifier si une cellule est adjacente à un territoire du joueur
   isAdjacentToPlayer(x, y, playerId) {
     const neighbors = this.getNeighbors(x, y);
     return neighbors.some(n => n.cell.owner === playerId);
   }
 
-  // Obtenir toutes les cellules d'un joueur
   getPlayerCells(playerId) {
     const cells = [];
     for (let y = 0; y < this.height; y++) {
@@ -128,35 +107,9 @@ class MapGrid {
     return cells;
   }
 
-  // Calculer le revenu total d'un joueur
-  calculatePlayerIncome(playerId) {
-    const cells = this.getPlayerCells(playerId);
-    return cells.reduce((sum, c) => sum + c.cell.income, 0);
-  }
-
-  // Calculer les troupes totales d'un joueur
   calculatePlayerTroops(playerId) {
     const cells = this.getPlayerCells(playerId);
     return cells.reduce((sum, c) => sum + c.cell.troops, 0);
-  }
-
-  // Trouver une position de départ valide
-  findValidStartPosition() {
-    const attempts = 100;
-    for (let i = 0; i < attempts; i++) {
-      const x = Math.floor(Math.random() * this.width);
-      const y = Math.floor(Math.random() * this.height);
-      const cell = this.getCell(x, y);
-      
-      if (cell && cell.type === 'land' && !cell.owner) {
-        // Vérifier qu'il y a assez d'espace autour
-        const hasSpace = this.checkAreaFree(x, y, 5);
-        if (hasSpace) {
-          return { x, y };
-        }
-      }
-    }
-    return null;
   }
 
   checkAreaFree(centerX, centerY, radius) {
@@ -171,20 +124,18 @@ class MapGrid {
     return true;
   }
 
-  // Placer la base d'un joueur
-  placePlayerBase(x, y, playerId, baseSize = 3) {
+  placePlayerBase(x, y, playerId, radius = 2) {
     const placed = [];
     
-    for (let dy = -baseSize; dy <= baseSize; dy++) {
-      for (let dx = -baseSize; dx <= baseSize; dx++) {
-        const nx = x + dx;
-        const ny = y + dy;
-        const cell = this.getCell(nx, ny);
-        
-        if (cell && cell.type === 'land') {
-          cell.owner = playerId;
-          cell.troops = 10; // Troupes de départ
-          placed.push({ x: nx, y: ny });
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= radius) {
+          const cell = this.getCell(x + dx, y + dy);
+          if (cell && cell.type === 'land') {
+            cell.owner = playerId;
+            placed.push({ x: x + dx, y: y + dy });
+          }
         }
       }
     }
@@ -192,7 +143,11 @@ class MapGrid {
     return placed;
   }
 
-  // Obtenir les données compressées pour l'envoi réseau
+  isCoastal(x, y) {
+    const neighbors = this.getNeighbors(x, y, false);
+    return neighbors.some(n => n.cell.type === 'water');
+  }
+
   getCompressedData() {
     const data = {
       width: this.width,
@@ -200,17 +155,17 @@ class MapGrid {
       cells: []
     };
     
-    // N'envoyer que les cellules importantes (terres + occupées)
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const cell = this.grid[y][x];
-        if (cell.type !== 'water' || cell.owner) {
+        if (cell.type === 'land' || cell.owner) {
           data.cells.push({
             x,
             y,
             t: cell.type === 'land' ? 'l' : 'w',
             o: cell.owner,
-            tr: cell.troops
+            tr: Math.floor(cell.troops),
+            b: cell.building
           });
         }
       }
@@ -219,23 +174,26 @@ class MapGrid {
     return data;
   }
 
-  // Obtenir les changements depuis le dernier état
   getChanges(previousState) {
     const changes = [];
+    
+    if (!previousState) return changes;
     
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const current = this.grid[y][x];
-        const previous = previousState?.[y]?.[x];
+        const previous = previousState[y][x];
         
         if (!previous || 
             current.owner !== previous.owner || 
-            current.troops !== previous.troops) {
+            Math.abs(current.troops - previous.troops) > 0.1 ||
+            current.building !== previous.building) {
           changes.push({
             x,
             y,
             owner: current.owner,
-            troops: current.troops
+            troops: Math.floor(current.troops),
+            building: current.building
           });
         }
       }
@@ -244,16 +202,6 @@ class MapGrid {
     return changes;
   }
 
-  // Sérialiser l'état complet
-  toJSON() {
-    return {
-      width: this.width,
-      height: this.height,
-      grid: this.grid
-    };
-  }
-
-  // Copier l'état actuel
   clone() {
     const cloned = new MapGrid(this.width, this.height);
     for (let y = 0; y < this.height; y++) {

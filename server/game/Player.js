@@ -84,7 +84,10 @@ class Player {
       isBot: this.isBot,
       alliances: this.alliances,
       kills: this.kills,
-      conquests: this.conquests
+      conquests: this.conquests,
+      baseX: this.baseX !== undefined ? this.baseX : null,
+      baseY: this.baseY !== undefined ? this.baseY : null,
+      hasPlacedBase: this.hasPlacedBase || false
     };
   }
 

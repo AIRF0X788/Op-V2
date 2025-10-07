@@ -86,8 +86,17 @@ class Game {
       }
       
       // Enregistrer les bases placées
-      if (data.playerId && data.baseX && data.baseY) {
+      if (data.playerId && data.baseX !== undefined && data.baseY !== undefined) {
         this.placedBases.set(data.playerId, { x: data.baseX, y: data.baseY });
+        
+        // Mettre à jour le gameState si on est en phase de placement
+        if (this.currentGameState && this.currentGameState.players) {
+          const player = this.currentGameState.players.find(p => p.id === data.playerId);
+          if (player) {
+            player.baseX = data.baseX;
+            player.baseY = data.baseY;
+          }
+        }
       }
     });
 
@@ -123,7 +132,7 @@ class Game {
 
     // Initialiser le gestionnaire de placement
     this.placementManager = new PlacementManager();
-    this.placementManager.init(this.mapData);
+    this.placementManager.init(this.mapData, roomData);
 
     // Mettre à jour les compteurs
     document.getElementById('totalPlayers').textContent = roomData.players.length;
@@ -146,6 +155,9 @@ class Game {
 
   startPlayingPhase() {
     console.log('🎮 Phase de jeu démarrée');
+    console.log('📊 État du jeu:', this.currentGameState);
+    console.log('🗺️ Données de la carte:', this.mapData);
+    
     this.currentPhase = 'playing';
 
     // Nettoyer le placement manager
@@ -167,6 +179,7 @@ class Game {
     // Centrer sur la base du joueur
     const currentPlayer = this.currentGameState?.players?.find(p => p.id === network.playerId);
     if (currentPlayer && currentPlayer.baseX !== null) {
+      console.log(`📍 Centrage sur base: (${currentPlayer.baseX}, ${currentPlayer.baseY})`);
       this.renderer.centerOnBase(currentPlayer.baseX, currentPlayer.baseY);
     }
 

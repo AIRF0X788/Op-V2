@@ -209,7 +209,12 @@ class MapRenderer {
     // Trouver les données de la cellule
     const cellData = this.mapData.cells.find(c => c.x === x && c.y === y);
     
-    if (!cellData) return;
+    // Si pas de données, c'est de l'eau par défaut
+    if (!cellData) {
+      this.ctx.fillStyle = this.colors.water;
+      this.ctx.fillRect(screenX, screenY, cellSize, cellSize);
+      return;
+    }
 
     let color = this.colors.water;
     

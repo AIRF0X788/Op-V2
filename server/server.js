@@ -138,25 +138,30 @@ io.on('connection', (socket) => {
       if (result.success) {
         const player = room.players.get(socket.id);
         
-        // Notifier le joueur
-        socket.emit('basePlaced', {
+        // Notifier TOUS les joueurs (pas juste celui qui a placé)
+        io.to(roomCode).emit('basePlaced', {
           success: true,
           baseX: player.baseX,
           baseY: player.baseY,
-          playerId: socket.id
+          playerId: socket.id,
+          playerName: player.name
         });
         
-        // Notifier tous les joueurs
+        // Notifier tous les joueurs du nombre de placements
         io.to(roomCode).emit('placementUpdate', {
           playersPlaced: room.playersPlaced.size,
           totalPlayers: room.players.size
         });
         
+        // Envoyer l'état complet mis à jour
+        room.broadcastFullState();
+        
         console.log(`[${new Date().toLocaleTimeString()}] 🎯 ${player.name} a placé sa base en (${x}, ${y})`);
       } else {
         socket.emit('basePlaced', {
           success: false,
-          reason: result.reason
+          reason: result.reason,
+          playerId: socket.id
         });
       }
     } catch (error) {

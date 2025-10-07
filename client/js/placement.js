@@ -6,11 +6,13 @@ class PlacementManager {
     this.renderer = null;
     this.hasPlaced = false;
     this.mapData = null;
+    this.gameState = null;
   }
 
-  init(mapData) {
+  init(mapData, initialGameState) {
     this.canvas = document.getElementById('placementCanvas');
     this.mapData = mapData;
+    this.gameState = initialGameState || { players: [] };
     
     // Créer le renderer pour la phase de placement
     this.renderer = new MapRenderer('placementCanvas');
@@ -72,21 +74,33 @@ class PlacementManager {
   }
 
   onBasePlaced(data) {
-    this.hasPlaced = true;
+    if (data.playerId === network.playerId) {
+      this.hasPlaced = true;
+    }
     
     if (data.success) {
-      network.showNotification('Base placée avec succès !', 'success');
+      if (data.playerId === network.playerId) {
+        network.showNotification('Base placée avec succès !', 'success');
+        
+        // Centrer la caméra sur la base
+        if (data.baseX !== undefined && data.baseY !== undefined) {
+          this.renderer.centerOnBase(data.baseX, data.baseY);
+        }
+      }
       
-      // Mettre à jour les informations
-      document.getElementById('playersPlaced').textContent = data.playersPlaced;
-      
-      // Centrer la caméra sur la base
-      if (data.baseX && data.baseY) {
-        this.renderer.centerOnBase(data.baseX, data.baseY);
+      // Mettre à jour les bases placées
+      if (data.playerId && data.baseX !== undefined && data.baseY !== undefined) {
+        const playerInState = this.gameState.players.find(p => p.id === data.playerId);
+        if (playerInState) {
+          playerInState.baseX = data.baseX;
+          playerInState.baseY = data.baseY;
+        }
       }
     } else {
-      this.hasPlaced = false;
-      network.showNotification(data.reason || 'Impossible de placer la base', 'error');
+      if (data.playerId === network.playerId) {
+        this.hasPlaced = false;
+        network.showNotification(data.reason || 'Impossible de placer la base', 'error');
+      }
     }
   }
 
@@ -99,23 +113,14 @@ class PlacementManager {
     }
   }
 
+  updateGameState(gameState) {
+    this.gameState = gameState;
+  }
+
   startRenderLoop() {
     const render = () => {
-      if (this.renderer && this.mapData) {
-        // Créer un gameState minimal pour le rendu
-        const placementState = {
-          players: Array.from(game.placedBases || []).map(([id, pos]) => {
-            return {
-              id,
-              baseX: pos.x,
-              baseY: pos.y,
-              color: '#3498db', // Couleur temporaire
-              name: 'Joueur'
-            };
-          })
-        };
-        
-        this.renderer.render(placementState);
+      if (this.renderer && this.mapData && this.gameState) {
+        this.renderer.render(this.gameState);
       }
       requestAnimationFrame(render);
     };

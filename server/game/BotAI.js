@@ -1,18 +1,19 @@
 const Bot = require('./Bot');
 
 class BotAI {
-  constructor(bot, gameRoom, difficulty = 'medium') {
+constructor(bot, gameRoom, difficulty = 'medium') {
     this.bot = bot;
     this.gameRoom = gameRoom;
     this.difficulty = difficulty;
     this.lastActionTime = Date.now();
+    
+    this.params = this.getDifficultyParams(); 
     this.actionInterval = this.getActionInterval();
+    
     this.targetPlayer = null;
     this.expansionTargets = [];
     this.defenseMode = false;
-    
-    this.params = this.getDifficultyParams();
-  }
+}
 
   getDifficultyParams() {
     const params = {

@@ -638,3 +638,375 @@ input:focus {
     height: 100px;
   }
 }
+/* client/css/style.css - Ajouter ces styles à la fin du fichier */
+
+/* === ALLIANCE SYSTEM === */
+.game-panel {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  width: 320px;
+  max-height: 500px;
+  background: rgba(26, 31, 46, 0.95);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.game-panel.collapsed .panel-content {
+  display: none;
+}
+
+.panel-header {
+  padding: 1rem;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--accent-blue);
+}
+
+.panel-toggle, .close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  transition: color 0.2s;
+}
+
+.panel-toggle:hover, .close-btn:hover {
+  color: var(--accent-blue);
+}
+
+.panel-content {
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.alliance-section {
+  margin-bottom: 1.5rem;
+}
+
+.alliance-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.alliance-player-item {
+  background: var(--bg-dark);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.alliance-player-item:hover {
+  background: var(--bg-hover);
+  transform: translateX(-2px);
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.player-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.player-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.player-actions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+.btn-small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.btn-small:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.btn-ally {
+  background: var(--accent-blue);
+  color: white;
+}
+
+.btn-ally:hover {
+  background: #3a8eef;
+}
+
+.btn-trade {
+  background: var(--accent-yellow);
+  color: white;
+}
+
+.btn-trade:hover {
+  background: #e89c0c;
+}
+
+.btn-break {
+  background: var(--accent-red);
+  color: white;
+}
+
+.btn-break:hover {
+  background: #d73a2c;
+}
+
+.btn-success {
+  background: var(--accent-green);
+  color: white;
+}
+
+.btn-success:hover {
+  background: #27b062;
+}
+
+.btn-danger {
+  background: var(--accent-red);
+  color: white;
+}
+
+.bot-badge, .ally-badge {
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: bold;
+}
+
+.bot-badge {
+  background: var(--accent-purple);
+  color: white;
+}
+
+.ally-badge {
+  background: var(--accent-green);
+  color: white;
+}
+
+.alliance-request {
+  background: var(--bg-dark);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-left: 3px solid var(--accent-yellow);
+}
+
+.request-info {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.request-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.ally-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--bg-dark);
+  border-radius: 6px;
+  margin-bottom: 0.25rem;
+}
+
+.ally-list {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.no-allies {
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
+}
+
+/* Trade Panel */
+#tradePanel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  z-index: 200;
+}
+
+#tradePanel.hidden {
+  display: none;
+}
+
+.trade-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.trade-section {
+  background: var(--bg-dark);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.trade-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: var(--accent-yellow);
+  font-size: 0.95rem;
+}
+
+.trade-input {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.trade-input label {
+  flex: 0 0 80px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.trade-input input {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.trade-input input:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.1);
+}
+
+.trade-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+/* Trade Offer Notification */
+.trade-offer-notification {
+  background: rgba(26, 31, 46, 0.98);
+  border: 2px solid var(--accent-yellow);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  animation: slideIn 0.3s ease;
+  max-width: 320px;
+}
+
+.trade-header {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--accent-yellow);
+  font-size: 0.95rem;
+}
+
+.trade-details {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.trade-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Combat Animation */
+.combat-animation {
+  position: absolute;
+  font-size: 2rem;
+  animation: combatPulse 1s ease;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+@keyframes combatPulse {
+  0% {
+    transform: scale(0.5) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(2) rotate(180deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.5) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Scrollbar personnalisée pour les panels */
+.panel-content::-webkit-scrollbar,
+.ally-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel-content::-webkit-scrollbar-track,
+.ally-list::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+.panel-content::-webkit-scrollbar-thumb,
+.ally-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.panel-content::-webkit-scrollbar-thumb:hover,
+.ally-list::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-blue);
+}

@@ -48,7 +48,7 @@ class RadialMenu {
     this.selectedCell = null;
   }
 
-  buildMenuItems(cellData, gameState) {
+ buildMenuItems(cellData, gameState) {
     this.clearItems();
     
     const isOurs = cellData.o === network.playerId;
@@ -72,6 +72,15 @@ class RadialMenu {
     const actions = [];
     
     if (isOurs) {
+      // NOUVEAU: Ajouter le renforcement
+      actions.push({
+        icon: '🛡️',
+        label: 'Reinforce',
+        cost: '100💰',
+        action: 'reinforce',
+        canAfford: currentPlayer.gold >= 100
+      });
+      
       if (!hasBuilding) {
         actions.push(
           { icon: '🏛️', label: 'City', cost: '500💰', action: 'buildCity', canAfford: currentPlayer.gold >= 500 },
@@ -83,13 +92,27 @@ class RadialMenu {
     } else if (isAdjacent) {
       const adjacentTroops = this.getAdjacentTroops(cellData.x, cellData.y);
       if (isEnemy) {
-        actions.push({
-          icon: '⚔️',
-          label: 'Attack',
-          cost: '5⚔️',
-          action: 'attack',
-          canAfford: adjacentTroops >= 5 && (adjacentTroops - 5) > cellData.tr
-        });
+        // NOUVEAU: Vérifier si c'est un allié
+        const isAlly = typeof allianceSystem !== 'undefined' && 
+                       allianceSystem.currentAlliances.has(cellData.o);
+        
+        if (!isAlly) {
+          actions.push({
+            icon: '⚔️',
+            label: 'Attack',
+            cost: '5⚔️',
+            action: 'attack',
+            canAfford: adjacentTroops >= 5 && (adjacentTroops - 5) > cellData.tr
+          });
+        } else {
+          actions.push({
+            icon: '🤝',
+            label: 'Allied',
+            cost: '',
+            action: 'info',
+            canAfford: false
+          });
+        }
       } else {
         actions.push({
           icon: '➕',
@@ -152,7 +175,7 @@ class RadialMenu {
     this.items = [];
   }
 
-  handleAction(action) {
+handleAction(action) {
     if (!this.selectedCell) return;
     
     const { x, y } = this.selectedCell;
@@ -161,6 +184,13 @@ class RadialMenu {
       case 'expand':
       case 'attack':
         game.expandToCell(x, y);
+        break;
+        
+      case 'reinforce':  // NOUVEAU
+        const troops = prompt('How many troops to add? (10💰 per troop)', '10');
+        if (troops && !isNaN(troops) && troops > 0) {
+          game.reinforceCell(x, y, parseInt(troops));
+        }
         break;
         
       case 'buildCity':

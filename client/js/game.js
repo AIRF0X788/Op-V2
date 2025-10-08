@@ -101,6 +101,10 @@ class Game {
     this.currentGameState = state;
     this.mapData = state.mapData;
 
+    if (typeof allianceSystem !== 'undefined') {
+      allianceSystem.updateFromGameState(state);
+    }
+
     if (state.gameState === 'placement') {
       this.startPlacementPhase(state);
     } else if (state.gameState === 'playing') {
@@ -147,7 +151,7 @@ class Game {
       const y = e.clientY - rect.top;
 
       const cell = this.renderer.getCellAtPosition(x, y);
-      
+
       if (cell) {
         const cellData = this.mapData.cells.find(c => c.x === cell.x && c.y === cell.y);
         if (cellData && cellData.t === 'l') {
@@ -174,7 +178,7 @@ class Game {
       const y = e.clientY - rect.top;
 
       const cell = this.renderer.getCellAtPosition(x, y);
-      
+
       if (cell) {
         this.ui.showCellTooltip(e.clientX, e.clientY, cell.x, cell.y, this.mapData, this.currentGameState);
       } else {
@@ -210,12 +214,24 @@ class Game {
 
     if (data.players) {
       this.currentGameState.players = data.players;
-      
+
+      if (typeof allianceSystem !== 'undefined') {
+        allianceSystem.updateFromGameState(this.currentGameState);
+      }
+
       const currentPlayer = data.players.find(p => p.id === network.playerId);
       if (currentPlayer) {
         this.ui.updateGameHUD(currentPlayer, this.mapData);
       }
     }
+  }
+  reinforceCell(x, y, troops) {
+    network.socket.emit('reinforceCell', {
+      roomCode: network.currentRoom,
+      x,
+      y,
+      troops
+    });
   }
 
   updateGameState(state) {
@@ -236,18 +252,18 @@ class Game {
       }
       requestAnimationFrame(loop);
     };
-    
+
     requestAnimationFrame(loop);
   }
 
   onGameOver(data) {
     const isWinner = data.winner.id === network.playerId;
-    const message = isWinner 
+    const message = isWinner
       ? `Victory! You conquered Europe!`
       : `${data.winner.name} conquered Europe!`;
-    
+
     network.showNotification(message, isWinner ? 'success' : 'info');
-    
+
     setTimeout(() => {
       this.ui.showGameOverModal(data);
     }, 2000);

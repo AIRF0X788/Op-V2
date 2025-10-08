@@ -171,6 +171,156 @@ io.on('connection', (socket) => {
     }
   });
 
+socket.on('reinforceCell', ({ roomCode, x, y, troops }) => {
+    try {
+      const room = gameRooms.get(roomCode);
+      
+      if (!room || room.gameState !== 'playing') {
+        socket.emit('error', 'Game not in progress');
+        return;
+      }
+
+      const result = room.reinforceCell(socket.id, x, y, troops);
+      
+      socket.emit('actionResult', result);
+      
+      if (result.success) {
+        console.log(`🛡️ Cell reinforced with ${troops} troops`);
+      }
+    } catch (error) {
+      console.error('❌ Reinforce error:', error);
+      socket.emit('error', 'Error reinforcing');
+    }
+  });
+
+  socket.on('proposeAlliance', ({ roomCode, targetId }) => {
+    try {
+      const room = gameRooms.get(roomCode);
+      
+      if (!room || room.gameState !== 'playing') {
+        socket.emit('error', 'Game not in progress');
+        return;
+      }
+
+      const result = room.proposeAlliance(socket.id, targetId);
+      
+      socket.emit('actionResult', result);
+      
+      if (result.success) {
+        console.log(`🤝 Alliance proposed`);
+      }
+    } catch (error) {
+      console.error('❌ Alliance proposal error:', error);
+      socket.emit('error', 'Error proposing alliance');
+    }
+  });
+
+  socket.on('acceptAlliance', ({ roomCode, fromId }) => {
+    try {
+      const room = gameRooms.get(roomCode);
+      
+      if (!room) {
+        socket.emit('error', 'Room not found');
+        return;
+      }
+
+      // L'acceptation se fait en proposant en retour
+      room.proposeAlliance(socket.id, fromId);
+      
+    } catch (error) {
+      console.error('❌ Accept alliance error:', error);
+      socket.emit('error', 'Error accepting alliance');
+    }
+  });
+
+  socket.on('breakAlliance', ({ roomCode, targetId }) => {
+    try {
+      const room = gameRooms.get(roomCode);
+      
+      if (!room || room.gameState !== 'playing') {
+        socket.emit('error', 'Game not in progress');
+        return;
+      }
+
+      const result = room.breakAlliance(socket.id, targetId);
+      
+      socket.emit('actionResult', result);
+      
+      if (result.success) {
+        console.log(`💔 Alliance broken`);
+      }
+    } catch (error) {
+      console.error('❌ Break alliance error:', error);
+      socket.emit('error', 'Error breaking alliance');
+    }
+  });
+
+  socket.on('createTradeOffer', ({ roomCode, targetId, offer }) => {
+    try {
+      const room = gameRooms.get(roomCode);
+      
+      if (!room || room.gameState !== 'playing') {
+        socket.emit('error', 'Game not in progress');
+        return;
+      }
+
+      const result = room.createTradeOffer(socket.id, targetId, offer);
+      
+      socket.emit('actionResult', result);
+      
+      if (result.success) {
+        console.log(`💰 Trade offer created`);
+      }
+    } catch (error) {
+      console.error('❌ Trade offer error:', error);
+      socket.emit('error', 'Error creating trade offer');
+    }
+  });
+
+  socket.on('acceptTrade', ({ roomCode, tradeId }) => {
+    try {
+      const room = gameRooms.get(roomCode);
+      
+      if (!room) {
+        socket.emit('error', 'Room not found');
+        return;
+      }
+
+      const result = room.acceptTrade(tradeId, socket.id);
+      
+      socket.emit('actionResult', result);
+      
+      if (result.success) {
+        console.log(`✅ Trade accepted`);
+      }
+    } catch (error) {
+      console.error('❌ Accept trade error:', error);
+      socket.emit('error', 'Error accepting trade');
+    }
+  });
+
+  socket.on('rejectTrade', ({ roomCode, tradeId }) => {
+    try {
+      const room = gameRooms.get(roomCode);
+      
+      if (!room) {
+        socket.emit('error', 'Room not found');
+        return;
+      }
+
+      const result = room.rejectTrade(tradeId, socket.id);
+      
+      socket.emit('actionResult', result);
+      
+      if (result.success) {
+        console.log(`❌ Trade rejected`);
+      }
+    } catch (error) {
+      console.error('❌ Reject trade error:', error);
+      socket.emit('error', 'Error rejecting trade');
+    }
+  });
+
   socket.on('buildBuilding', ({ roomCode, x, y, buildingType }) => {
     try {
       const room = gameRooms.get(roomCode);

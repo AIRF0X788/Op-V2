@@ -5,21 +5,33 @@ class RadialMenu {
     this.isOpen = false;
     this.selectedCell = null;
     this.items = [];
-    this.radius = 105;
-    this.itemSize = 70;
+    this.radius = 110;
+    this.itemSize = 80;
     
+    // Créer l'overlay pour fermer le menu
+    this.createOverlay();
     this.setupGlobalListeners();
   }
 
+  createOverlay() {
+    this.overlay = document.createElement('div');
+    this.overlay.className = 'radial-overlay';
+    this.overlay.addEventListener('click', () => this.close());
+    document.body.appendChild(this.overlay);
+  }
+
   setupGlobalListeners() {
-    document.addEventListener('click', (e) => {
-      if (this.isOpen && !this.container.contains(e.target)) {
+    // Fermer avec Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isOpen) {
         this.close();
       }
     });
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.isOpen) {
+    // Fermer avec clic droit
+    document.addEventListener('contextmenu', (e) => {
+      if (this.isOpen) {
+        e.preventDefault();
         this.close();
       }
     });
@@ -28,32 +40,43 @@ class RadialMenu {
   open(x, y, cellData, gameState) {
     this.selectedCell = { x, y, data: cellData };
     
-    // CORRECTION: Retirer la classe hidden pour rendre le menu visible
+    // Retirer la classe hidden et activer l'overlay
     this.container.classList.remove('hidden');
+    this.overlay.classList.add('active');
     
-    this.container.style.left = `${x - 140}px`;
-    this.container.style.top = `${y - 140}px`;
+    // Positionner le menu en évitant les bords de l'écran
+    const menuSize = 300;
+    const padding = 20;
+    
+    let menuX = Math.max(padding, Math.min(window.innerWidth - menuSize - padding, x - menuSize/2));
+    let menuY = Math.max(padding, Math.min(window.innerHeight - menuSize - padding, y - menuSize/2));
+    
+    this.container.style.left = `${menuX}px`;
+    this.container.style.top = `${menuY}px`;
     
     this.buildMenuItems(cellData, gameState);
     
+    // Animation d'ouverture avec délai
     setTimeout(() => {
       this.container.classList.add('active');
       this.isOpen = true;
-    }, 10);
+    }, 50);
   }
 
   close() {
     this.container.classList.remove('active');
+    this.overlay.classList.remove('active');
     this.isOpen = false;
+    
     setTimeout(() => {
       this.clearItems();
-      // CORRECTION: Remettre la classe hidden pour cacher le menu
       this.container.classList.add('hidden');
-    }, 300);
+    }, 400);
+    
     this.selectedCell = null;
   }
 
- buildMenuItems(cellData, gameState) {
+  buildMenuItems(cellData, gameState) {
     this.clearItems();
     
     const isOurs = cellData.o === network.playerId;
@@ -63,21 +86,25 @@ class RadialMenu {
     const currentPlayer = gameState.players.find(p => p.id === network.playerId);
     const hasBuilding = cellData.b !== null;
     
+    // Mise à jour du centre avec couleurs dynamiques
     if (isOurs) {
       this.centerIcon.textContent = '✓';
       this.centerIcon.style.borderColor = currentPlayer?.color || '#4a9eff';
+      this.centerIcon.style.color = currentPlayer?.color || '#4a9eff';
     } else if (isEnemy) {
       this.centerIcon.textContent = '⚔️';
       this.centerIcon.style.borderColor = '#e74c3c';
+      this.centerIcon.style.color = '#e74c3c';
     } else {
       this.centerIcon.textContent = '○';
       this.centerIcon.style.borderColor = '#2ecc71';
+      this.centerIcon.style.color = '#2ecc71';
     }
     
     const actions = [];
     
     if (isOurs) {
-      // NOUVEAU: Ajouter le renforcement
+      // Renforcement
       actions.push({
         icon: '🛡️',
         label: 'Reinforce',
@@ -97,7 +124,6 @@ class RadialMenu {
     } else if (isAdjacent) {
       const adjacentTroops = this.getAdjacentTroops(cellData.x, cellData.y);
       if (isEnemy) {
-        // NOUVEAU: Vérifier si c'est un allié
         const isAlly = typeof allianceSystem !== 'undefined' && 
                        allianceSystem.currentAlliances.has(cellData.o);
         
@@ -129,6 +155,7 @@ class RadialMenu {
       }
     }
     
+    // Toujours ajouter l'info
     actions.push({
       icon: 'ℹ️',
       label: 'Info',
@@ -145,8 +172,8 @@ class RadialMenu {
     
     actions.forEach((action, index) => {
       const angle = angleStep * index - Math.PI / 2;
-      const x = 140 + Math.cos(angle) * this.radius;
-      const y = 140 + Math.sin(angle) * this.radius;
+      const x = 150 + Math.cos(angle) * this.radius;
+      const y = 150 + Math.sin(angle) * this.radius;
       
       const item = document.createElement('div');
       item.className = 'radial-item';
@@ -180,7 +207,7 @@ class RadialMenu {
     this.items = [];
   }
 
-handleAction(action) {
+  handleAction(action) {
     if (!this.selectedCell) return;
     
     const { x, y } = this.selectedCell;
@@ -191,7 +218,7 @@ handleAction(action) {
         game.expandToCell(x, y);
         break;
         
-      case 'reinforce':  // NOUVEAU
+      case 'reinforce':
         const troops = prompt('How many troops to add? (10💰 per troop)', '10');
         if (troops && !isNaN(troops) && troops > 0) {
           game.reinforceCell(x, y, parseInt(troops));
@@ -216,7 +243,7 @@ handleAction(action) {
         
       case 'info':
         this.showCellInfo();
-        break;
+        return; // Ne pas fermer le menu pour l'info
     }
     
     this.close();
@@ -237,15 +264,15 @@ handleAction(action) {
     }
     
     const buildingNames = {
-      city: 'City',
-      port: 'Port',
-      outpost: 'Outpost',
-      barracks: 'Barracks'
+      city: '🏛️ City',
+      port: '⚓ Port',
+      outpost: '🏰 Outpost',
+      barracks: '⚔️ Barracks'
     };
     
-    let message = `Position: (${x}, ${y})\nOwner: ${ownerName}\nTroops: ${Math.floor(cellData.tr || 0)}`;
+    let message = `📍 Position: (${x}, ${y})\n👤 Owner: ${ownerName}\n🛡️ Troops: ${Math.floor(cellData.tr || 0)}`;
     if (cellData.b) {
-      message += `\nBuilding: ${buildingNames[cellData.b]}`;
+      message += `\n🏗️ Building: ${buildingNames[cellData.b]}`;
     }
     
     network.showNotification(message, 'info');

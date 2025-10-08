@@ -34,6 +34,26 @@ class Bot {
     return strategies[Math.floor(Math.random() * strategies.length)];
   }
 
+  // NOUVELLE MÉTHODE: Vérifier si le bot est allié avec un joueur
+  isAlliedWith(playerId) {
+    return this.alliances.includes(playerId);
+  }
+
+  // NOUVELLE MÉTHODE: Ajouter une alliance
+  addAlliance(playerId) {
+    if (!this.alliances.includes(playerId)) {
+      this.alliances.push(playerId);
+    }
+  }
+
+  // NOUVELLE MÉTHODE: Retirer une alliance
+  removeAlliance(playerId) {
+    const index = this.alliances.indexOf(playerId);
+    if (index !== -1) {
+      this.alliances.splice(index, 1);
+    }
+  }
+
   toJSON() {
     return {
       id: this.id,

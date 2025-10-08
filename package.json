@@ -1,12 +1,11 @@
 {
   "name": "worldconquest-io",
   "version": "2.0.0",
-  "description": "Jeu de stratégie multijoueur .io de conquête mondiale - Style OpenFront.io",
+  "description": "Multiplayer .io strategy game - OpenFront style",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "dev": "nodemon server/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon server/server.js"
   },
   "keywords": [
     "game",
@@ -14,9 +13,7 @@
     "strategy",
     "multiplayer",
     "conquest",
-    "openfront",
-    "territory",
-    "realtime"
+    "openfront"
   ],
   "author": "Airfox",
   "license": "MIT",
@@ -29,9 +26,5 @@
   },
   "engines": {
     "node": ">=14.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/AIRF0X788/Op-V2"
   }
 }

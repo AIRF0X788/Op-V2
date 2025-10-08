@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
-const GameRoomOpenFront = require('./game/GameRoomOpenFront');
+const GameRoom = require('./game/GameRoom');
 
 const app = express();
 const server = http.createServer(app);
@@ -30,22 +30,22 @@ function generateRoomCode() {
 }
 
 io.on('connection', (socket) => {
-  console.log(`✅ Client connecté: ${socket.id}`);
+  console.log(`✅ Client connected: ${socket.id}`);
 
   socket.on('createRoom', (playerName) => {
     try {
       const roomCode = generateRoomCode();
-      const room = new GameRoomOpenFront(roomCode, socket.id, io);
+      const room = new GameRoom(roomCode, socket.id, io);
       gameRooms.set(roomCode, room);
       
       room.addPlayer(socket.id, playerName);
       socket.join(roomCode);
       
       socket.emit('roomCreated', { code: roomCode, room: room.getState() });
-      console.log(`🎮 Room créée: ${roomCode}`);
+      console.log(`🎮 Room created: ${roomCode}`);
     } catch (error) {
-      console.error('❌ Erreur création room:', error);
-      socket.emit('error', 'Erreur lors de la création');
+      console.error('❌ Create room error:', error);
+      socket.emit('error', 'Error creating room');
     }
   });
 
@@ -54,17 +54,17 @@ io.on('connection', (socket) => {
       const room = gameRooms.get(code);
       
       if (!room) {
-        socket.emit('error', 'Room non trouvée');
+        socket.emit('error', 'Room not found');
         return;
       }
 
       if (room.gameState !== 'lobby') {
-        socket.emit('error', 'Partie déjà commencée');
+        socket.emit('error', 'Game already started');
         return;
       }
 
       if (room.players.size >= 8) {
-        socket.emit('error', 'Room pleine');
+        socket.emit('error', 'Room full');
         return;
       }
 
@@ -74,10 +74,10 @@ io.on('connection', (socket) => {
       socket.emit('roomJoined', { room: room.getState() });
       io.to(code).emit('playerJoined', { room: room.getState() });
       
-      console.log(`👤 ${playerName} a rejoint ${code}`);
+      console.log(`👤 ${playerName} joined ${code}`);
     } catch (error) {
-      console.error('❌ Erreur joinRoom:', error);
-      socket.emit('error', 'Erreur lors de la connexion');
+      console.error('❌ Join room error:', error);
+      socket.emit('error', 'Error joining room');
     }
   });
 
@@ -86,27 +86,27 @@ io.on('connection', (socket) => {
       const room = gameRooms.get(roomCode);
       
       if (!room) {
-        socket.emit('error', 'Room non trouvée');
+        socket.emit('error', 'Room not found');
         return;
       }
 
       if (room.hostId !== socket.id) {
-        socket.emit('error', 'Seul l\'hôte peut démarrer');
+        socket.emit('error', 'Only host can start');
         return;
       }
 
       if (room.players.size < 1) {
-        socket.emit('error', 'Pas assez de joueurs');
+        socket.emit('error', 'Not enough players');
         return;
       }
 
       if (room.startGame()) {
         io.to(roomCode).emit('gameStarted', { room: room.getState() });
-        console.log(`🎯 Phase de placement: ${roomCode}`);
+        console.log(`🎯 Placement phase: ${roomCode}`);
       }
     } catch (error) {
-      console.error('❌ Erreur startGame:', error);
-      socket.emit('error', 'Erreur lors du démarrage');
+      console.error('❌ Start game error:', error);
+      socket.emit('error', 'Error starting game');
     }
   });
 
@@ -115,7 +115,7 @@ io.on('connection', (socket) => {
       const room = gameRooms.get(roomCode);
       
       if (!room || room.gameState !== 'placement') {
-        socket.emit('error', 'Phase de placement terminée');
+        socket.emit('error', 'Placement phase ended');
         return;
       }
 
@@ -136,7 +136,7 @@ io.on('connection', (socket) => {
           totalPlayers: room.players.size
         });
         
-        console.log(`📍 ${player.name} base placée en (${x}, ${y})`);
+        console.log(`📍 ${player.name} placed base at (${x}, ${y})`);
       } else {
         socket.emit('basePlaced', {
           success: false,
@@ -144,8 +144,8 @@ io.on('connection', (socket) => {
         });
       }
     } catch (error) {
-      console.error('❌ Erreur placeBase:', error);
-      socket.emit('error', 'Erreur lors du placement');
+      console.error('❌ Place base error:', error);
+      socket.emit('error', 'Error placing base');
     }
   });
 
@@ -154,7 +154,7 @@ io.on('connection', (socket) => {
       const room = gameRooms.get(roomCode);
       
       if (!room || room.gameState !== 'playing') {
-        socket.emit('error', 'Partie non en cours');
+        socket.emit('error', 'Game not in progress');
         return;
       }
 
@@ -163,11 +163,11 @@ io.on('connection', (socket) => {
       socket.emit('actionResult', result);
       
       if (result.success) {
-        console.log(`➕ Territoire étendu par ${socket.id}`);
+        console.log(`➕ Territory expanded by ${socket.id}`);
       }
     } catch (error) {
-      console.error('❌ Erreur expandTerritory:', error);
-      socket.emit('error', 'Erreur lors de l\'expansion');
+      console.error('❌ Expand territory error:', error);
+      socket.emit('error', 'Error expanding territory');
     }
   });
 
@@ -176,7 +176,7 @@ io.on('connection', (socket) => {
       const room = gameRooms.get(roomCode);
       
       if (!room || room.gameState !== 'playing') {
-        socket.emit('error', 'Partie non en cours');
+        socket.emit('error', 'Game not in progress');
         return;
       }
 
@@ -185,11 +185,11 @@ io.on('connection', (socket) => {
       socket.emit('actionResult', result);
       
       if (result.success) {
-        console.log(`🏗️ Bâtiment ${buildingType} construit`);
+        console.log(`🏗️ Building ${buildingType} built`);
       }
     } catch (error) {
-      console.error('❌ Erreur buildBuilding:', error);
-      socket.emit('error', 'Erreur lors de la construction');
+      console.error('❌ Build building error:', error);
+      socket.emit('error', 'Error building');
     }
   });
 
@@ -201,7 +201,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`❌ Déconnexion: ${socket.id}`);
+    console.log(`❌ Disconnection: ${socket.id}`);
     
     gameRooms.forEach((room, code) => {
       if (room.players.has(socket.id)) {
@@ -210,7 +210,7 @@ io.on('connection', (socket) => {
         if (isEmpty) {
           room.stopGame();
           gameRooms.delete(code);
-          console.log(`🗑️ Room ${code} supprimée`);
+          console.log(`🗑️ Room ${code} deleted`);
         } else {
           io.to(code).emit('playerLeft', { playerId: socket.id });
           
@@ -218,7 +218,7 @@ io.on('connection', (socket) => {
             const newHost = Array.from(room.players.keys())[0];
             if (newHost) {
               room.hostId = newHost;
-              io.to(code).emit('info', 'Nouvel hôte désigné');
+              io.to(code).emit('info', 'New host assigned');
             }
           }
         }
@@ -227,7 +227,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Cleanup des rooms inactives
 setInterval(() => {
   const now = Date.now();
   const timeout = 60 * 60 * 1000;
@@ -239,7 +238,7 @@ setInterval(() => {
       if (roomAge > timeout || room.players.size === 0) {
         room.stopGame();
         gameRooms.delete(code);
-        console.log(`🗑️ Room ${code} nettoyée`);
+        console.log(`🗑️ Room ${code} cleaned`);
       }
     }
   });

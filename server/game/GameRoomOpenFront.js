@@ -1,32 +1,28 @@
-// server/game/GameRoomOpenFront.js
 const Player = require('./Player');
 const MapGrid = require('./MapGrid');
 
-class GameRoomOpenFront {
+class GameRoom {
   constructor(code, hostId, io) {
     this.code = code;
     this.hostId = hostId;
     this.io = io;
     this.players = new Map();
-    this.gameState = 'lobby'; // lobby, placement, playing, finished
-    this.tickRate = 100; // 100ms par tick
+    this.gameState = 'lobby';
+    this.tickRate = 100;
     this.gameLoop = null;
     this.startTime = null;
     this.tickCount = 0;
     
-    // Carte
     this.mapGrid = new MapGrid(150, 100);
     this.mapGrid.loadEuropeMap();
     
-    // Suivi
     this.playersPlaced = new Set();
     this.previousGridState = null;
     
-    // Configuration du jeu (style OpenFront)
     this.config = {
-      expandCost: 5, // Troupes nécessaires pour étendre
-      troopGeneration: 0.1, // Troupes générées par cellule/tick
-      goldGeneration: 1, // Or par cellule/seconde
+      expandCost: 5,
+      troopGeneration: 0.1,
+      goldGeneration: 1,
       buildingCosts: {
         city: 500,
         port: 300,
@@ -41,7 +37,7 @@ class GameRoomOpenFront {
       },
       startingGold: 1000,
       startingTroops: 50,
-      victoryThreshold: 0.8 // 80% de la carte
+      victoryThreshold: 0.8
     };
   }
 
@@ -52,7 +48,6 @@ class GameRoomOpenFront {
     player.baseY = null;
     player.gold = this.config.startingGold;
     this.players.set(socketId, player);
-    console.log(`Joueur ${playerName} ajouté`);
     return player;
   }
 
@@ -62,7 +57,6 @@ class GameRoomOpenFront {
       this.players.delete(socketId);
       this.playersPlaced.delete(socketId);
       
-      // Rendre les cellules neutres
       const playerCells = this.mapGrid.getPlayerCells(socketId);
       playerCells.forEach(({ x, y }) => {
         const cell = this.mapGrid.getCell(x, y);
@@ -81,38 +75,34 @@ class GameRoomOpenFront {
     this.gameState = 'placement';
     this.startTime = Date.now();
     
-    console.log(`Phase de placement démarrée`);
     return true;
   }
 
   placePlayerBase(playerId, x, y) {
     const player = this.players.get(playerId);
     if (!player) {
-      return { success: false, reason: 'Joueur non trouvé' };
+      return { success: false, reason: 'Player not found' };
     }
 
     if (player.hasPlacedBase) {
-      return { success: false, reason: 'Base déjà placée' };
+      return { success: false, reason: 'Base already placed' };
     }
 
     const cell = this.mapGrid.getCell(x, y);
     if (!cell || cell.type !== 'land') {
-      return { success: false, reason: 'Position invalide' };
+      return { success: false, reason: 'Invalid position' };
     }
 
     if (cell.owner) {
-      return { success: false, reason: 'Position occupée' };
+      return { success: false, reason: 'Position occupied' };
     }
 
-    // Vérifier l'espace
     if (!this.mapGrid.checkAreaFree(x, y, 5)) {
-      return { success: false, reason: 'Trop proche d\'un autre joueur' };
+      return { success: false, reason: 'Too close to another player' };
     }
 
-    // Placer la base avec rayon de 2
     const placedCells = this.mapGrid.placePlayerBase(x, y, playerId, 2);
     
-    // Donner les troupes initiales
     placedCells.forEach(pos => {
       const c = this.mapGrid.getCell(pos.x, pos.y);
       c.troops = this.config.startingTroops / placedCells.length;
@@ -123,7 +113,6 @@ class GameRoomOpenFront {
     player.baseY = y;
     this.playersPlaced.add(playerId);
 
-    // Tous placés ?
     if (this.playersPlaced.size === this.players.size) {
       this.startPlayingPhase();
     }
@@ -136,24 +125,20 @@ class GameRoomOpenFront {
     this.previousGridState = this.mapGrid.clone();
     this.gameLoop = setInterval(() => this.tick(), this.tickRate);
     
-    console.log(`Phase de jeu démarrée`);
     this.io.to(this.code).emit('phaseChanged', { phase: 'playing' });
   }
 
   tick() {
     this.tickCount++;
     
-    // Génération de ressources (tous les 10 ticks = 1 seconde)
     if (this.tickCount % 10 === 0) {
       this.generateResources();
     }
     
-    // Vérifier victoire (tous les 5 secondes)
     if (this.tickCount % 50 === 0) {
       this.checkVictory();
     }
     
-    // Broadcast changes
     this.broadcastChanges();
   }
 
@@ -165,13 +150,9 @@ class GameRoomOpenFront {
       let troopsPerSecond = 0;
       
       cells.forEach(({ cell }) => {
-        // Or de base
         goldPerSecond += this.config.goldGeneration;
-        
-        // Troupes de base
         troopsPerSecond += this.config.troopGeneration;
         
-        // Bonus des bâtiments
         if (cell.building) {
           const bonus = this.config.buildingBonuses[cell.building];
           if (bonus) {
@@ -184,7 +165,6 @@ class GameRoomOpenFront {
       player.gold += goldPerSecond;
       player.income = goldPerSecond;
       
-      // Distribuer les troupes sur les cellules
       const troopsPerCell = troopsPerSecond / cells.length;
       cells.forEach(({ cell }) => {
         cell.troops += troopsPerCell;
@@ -194,63 +174,53 @@ class GameRoomOpenFront {
     });
   }
 
-  // Extension de territoire (gameplay OpenFront)
   expandTerritory(playerId, targetX, targetY) {
     const player = this.players.get(playerId);
     if (!player) {
-      return { success: false, reason: 'Joueur non trouvé' };
+      return { success: false, reason: 'Player not found' };
     }
 
     const targetCell = this.mapGrid.getCell(targetX, targetY);
     if (!targetCell || targetCell.type !== 'land') {
-      return { success: false, reason: 'Position invalide' };
+      return { success: false, reason: 'Invalid position' };
     }
 
-    // Vérifier adjacence
     if (!this.mapGrid.isAdjacentToPlayer(targetX, targetY, playerId)) {
-      return { success: false, reason: 'Doit être adjacent' };
+      return { success: false, reason: 'Must be adjacent' };
     }
 
-    // Cellule déjà possédée
     if (targetCell.owner === playerId) {
-      return { success: false, reason: 'Déjà possédé' };
+      return { success: false, reason: 'Already owned' };
     }
 
-    // Obtenir troupes adjacentes
     const adjacentTroops = this.getAdjacentTroops(targetX, targetY, playerId);
     const expandCost = this.config.expandCost;
 
     if (adjacentTroops < expandCost) {
-      return { success: false, reason: 'Pas assez de troupes adjacentes' };
+      return { success: false, reason: 'Not enough adjacent troops' };
     }
 
-    // Si occupé par un ennemi
     if (targetCell.owner && targetCell.owner !== playerId) {
       const defenderTroops = targetCell.troops;
       
-      // Combat : attaquant doit avoir plus de troupes
       if (adjacentTroops - expandCost <= defenderTroops) {
-        return { success: false, reason: 'Défense trop forte' };
+        return { success: false, reason: 'Defense too strong' };
       }
 
-      // Victoire
       const survivingTroops = (adjacentTroops - expandCost) - defenderTroops;
       targetCell.owner = playerId;
       targetCell.troops = Math.max(1, survivingTroops * 0.7);
-      targetCell.building = null; // Bâtiment détruit
+      targetCell.building = null;
       
-      // Retirer les troupes utilisées
       this.distributeTroopCost(targetX, targetY, playerId, expandCost + defenderTroops * 0.5);
       
       player.conquests++;
       
       return { success: true, conquered: true };
     } else {
-      // Cellule neutre
       targetCell.owner = playerId;
       targetCell.troops = expandCost * 0.5;
       
-      // Retirer les troupes
       this.distributeTroopCost(targetX, targetY, playerId, expandCost);
       
       return { success: true, conquered: false };
@@ -270,7 +240,6 @@ class GameRoomOpenFront {
     
     if (neighbors.length === 0) return;
     
-    // Répartir proportionnellement
     const totalTroops = neighbors.reduce((sum, n) => sum + n.cell.troops, 0);
     
     neighbors.forEach(n => {
@@ -280,37 +249,34 @@ class GameRoomOpenFront {
     });
   }
 
-  // Construire un bâtiment
   buildBuilding(playerId, x, y, buildingType) {
     const player = this.players.get(playerId);
     if (!player) {
-      return { success: false, reason: 'Joueur non trouvé' };
+      return { success: false, reason: 'Player not found' };
     }
 
     const cell = this.mapGrid.getCell(x, y);
     if (!cell || cell.owner !== playerId) {
-      return { success: false, reason: 'Pas votre territoire' };
+      return { success: false, reason: 'Not your territory' };
     }
 
     if (cell.building) {
-      return { success: false, reason: 'Bâtiment déjà présent' };
+      return { success: false, reason: 'Building already exists' };
     }
 
     const cost = this.config.buildingCosts[buildingType];
     if (!cost) {
-      return { success: false, reason: 'Type de bâtiment invalide' };
+      return { success: false, reason: 'Invalid building type' };
     }
 
     if (player.gold < cost) {
-      return { success: false, reason: 'Or insuffisant' };
+      return { success: false, reason: 'Insufficient gold' };
     }
 
-    // Restrictions spécifiques
     if (buildingType === 'port' && !this.mapGrid.isCoastal(x, y)) {
-      return { success: false, reason: 'Doit être côtier' };
+      return { success: false, reason: 'Must be coastal' };
     }
 
-    // Construire
     cell.building = buildingType;
     player.gold -= cost;
 
@@ -427,4 +393,4 @@ class GameRoomOpenFront {
   }
 }
 
-module.exports = GameRoomOpenFront;
+module.exports = GameRoom;

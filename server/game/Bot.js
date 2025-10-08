@@ -1,5 +1,3 @@
-// server/game/Bot.js
-
 class Bot {
   constructor(id, name, difficulty = 'medium') {
     this.id = id;
@@ -19,8 +17,14 @@ class Bot {
 
   generateColor() {
     const botColors = [
-      '#8B4513', '#696969', '#808000', '#800080',
-      '#008080', '#4B0082', '#2F4F4F', '#556B2F'
+      '#8B4513',
+      '#696969',
+      '#808000',
+      '#800080',
+      '#008080',
+      '#4B0082',
+      '#2F4F4F',
+      '#556B2F'
     ];
     return botColors[Math.floor(Math.random() * botColors.length)];
   }

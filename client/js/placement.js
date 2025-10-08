@@ -1,5 +1,3 @@
-// client/js/placement.js
-
 class PlacementManager {
   constructor() {
     this.canvas = null;
@@ -14,21 +12,17 @@ class PlacementManager {
     this.mapData = mapData;
     this.gameState = initialGameState || { players: [] };
     
-    // Créer le renderer pour la phase de placement
     this.renderer = new MapRenderer('placementCanvas');
     this.renderer.loadMapData(mapData);
     
-    // Configurer les événements de clic
     this.setupEvents();
-    
-    // Démarrer le rendu
     this.startRenderLoop();
   }
 
   setupEvents() {
     this.canvas.addEventListener('click', (e) => {
       if (this.hasPlaced) {
-        network.showNotification('Vous avez déjà placé votre base', 'warning');
+        network.showNotification('Base already placed', 'warning');
         return;
       }
 
@@ -43,7 +37,6 @@ class PlacementManager {
       }
     });
 
-    // Afficher un aperçu lors du survol
     this.canvas.addEventListener('mousemove', (e) => {
       if (this.hasPlaced) return;
 
@@ -60,7 +53,6 @@ class PlacementManager {
   }
 
   attemptPlaceBase(x, y) {
-    // Envoyer la requête au serveur
     network.socket.emit('placeBase', {
       roomCode: network.currentRoom,
       x,
@@ -69,7 +61,6 @@ class PlacementManager {
   }
 
   showPlacementPreview(x, y) {
-    // Mettre en évidence la zone où la base sera placée
     this.renderer.setSelectedCell({ x, y });
   }
 
@@ -80,15 +71,13 @@ class PlacementManager {
     
     if (data.success) {
       if (data.playerId === network.playerId) {
-        network.showNotification('Base placée avec succès !', 'success');
+        network.showNotification('Base placed successfully!', 'success');
         
-        // Centrer la caméra sur la base
         if (data.baseX !== undefined && data.baseY !== undefined) {
           this.renderer.centerOnBase(data.baseX, data.baseY);
         }
       }
       
-      // Mettre à jour les bases placées
       if (data.playerId && data.baseX !== undefined && data.baseY !== undefined) {
         const playerInState = this.gameState.players.find(p => p.id === data.playerId);
         if (playerInState) {
@@ -99,7 +88,7 @@ class PlacementManager {
     } else {
       if (data.playerId === network.playerId) {
         this.hasPlaced = false;
-        network.showNotification(data.reason || 'Impossible de placer la base', 'error');
+        network.showNotification(data.reason || 'Cannot place base', 'error');
       }
     }
   }
@@ -109,7 +98,7 @@ class PlacementManager {
     document.getElementById('totalPlayers').textContent = totalPlayers;
     
     if (playersPlaced === totalPlayers && playersPlaced > 0) {
-      network.showNotification('Tous les joueurs ont placé leur base ! La partie commence...', 'success');
+      network.showNotification('All players ready! Starting...', 'success');
     }
   }
 
@@ -129,7 +118,6 @@ class PlacementManager {
   }
 
   cleanup() {
-    // Nettoyer si nécessaire
     this.hasPlaced = false;
     this.renderer = null;
   }

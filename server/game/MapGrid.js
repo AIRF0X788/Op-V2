@@ -1,5 +1,3 @@
-// server/game/MapGrid.js
-
 class MapGrid {
   constructor(width, height) {
     this.width = width;
@@ -15,17 +13,16 @@ class MapGrid {
         this.grid[y][x] = {
           x,
           y,
-          type: 'water', // water, land
+          type: 'water',
           owner: null,
           troops: 0,
-          building: null // null, 'city', 'port', 'outpost', 'barracks'
+          building: null
         };
       }
     }
   }
 
   loadEuropeMap() {
-    // Forme approximative de l'Europe
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         if (this.isEuropeLand(x, y)) {
@@ -39,23 +36,19 @@ class MapGrid {
     const centerX = this.width / 2;
     const centerY = this.height / 2;
     
-    // Distance du centre
     const dx = (x - centerX) / this.width;
     const dy = (y - centerY) / this.height;
     const dist = Math.sqrt(dx * dx + dy * dy);
     
-    // Forme irrégulière avec bruit
     const noise = Math.sin(x * 0.15) * Math.cos(y * 0.15) * 0.2;
     const threshold = 0.55 + noise;
     
     if (dist > threshold) return false;
     
-    // Retirer la Méditerranée (sud)
     if (y > this.height * 0.7 && x > this.width * 0.35 && x < this.width * 0.65) {
       return false;
     }
     
-    // Mer du Nord (nord-ouest)
     if (y < this.height * 0.25 && x < this.width * 0.4) {
       const subDist = Math.sqrt(
         Math.pow((x - this.width * 0.25) / this.width, 2) +

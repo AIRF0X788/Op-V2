@@ -1,5 +1,3 @@
-// client/js/network.js - Gestion de la connexion Socket.io
-
 class NetworkManager {
   constructor() {
     this.socket = null;
@@ -14,20 +12,17 @@ class NetworkManager {
       this.socket = io(serverUrl);
 
       this.socket.on('connect', () => {
-        console.log('🔗 Connecté au serveur');
         this.connected = true;
         this.playerId = this.socket.id;
         resolve();
       });
 
       this.socket.on('disconnect', () => {
-        console.log('❌ Déconnecté du serveur');
         this.connected = false;
-        this.showNotification('Connexion perdue avec le serveur', 'error');
+        this.showNotification('Connection lost', 'error');
       });
 
       this.socket.on('connect_error', (error) => {
-        console.error('❌ Erreur de connexion:', error);
         reject(error);
       });
 
@@ -36,35 +31,28 @@ class NetworkManager {
   }
 
   setupEventListeners() {
-    // Événements des rooms
     this.socket.on('roomCreated', (data) => {
-      console.log('✅ Room créée:', data);
       this.currentRoom = data.code;
       this.trigger('roomCreated', data);
     });
 
     this.socket.on('roomJoined', (data) => {
-      console.log('✅ Room rejointe:', data);
       this.currentRoom = data.room.code;
       this.trigger('roomJoined', data);
     });
 
     this.socket.on('playerJoined', (data) => {
-      console.log('👤 Joueur a rejoint:', data);
       this.trigger('playerJoined', data);
-      this.showNotification('Un joueur a rejoint la partie', 'info');
+      this.showNotification('A player joined', 'info');
     });
 
     this.socket.on('playerLeft', (data) => {
-      console.log('👋 Joueur est parti:', data);
-      this.showNotification('Un joueur a quitté la partie', 'warning');
+      this.showNotification('A player left', 'warning');
     });
 
-    // Événements de jeu
     this.socket.on('gameStarted', (data) => {
-      console.log('🎮 Partie démarrée:', data);
       this.trigger('gameStarted', data);
-      this.showNotification('La partie commence ! Placez votre base.', 'success');
+      this.showNotification('Game starting! Place your base', 'success');
     });
 
     this.socket.on('fullState', (state) => {
@@ -78,17 +66,16 @@ class NetworkManager {
     this.socket.on('phaseChanged', (data) => {
       this.trigger('phaseChanged', data);
       if (data.phase === 'playing') {
-        this.showNotification('🎮 Tous les joueurs ont placé leur base ! La conquête commence !', 'success');
+        this.showNotification('All players ready! Conquest begins!', 'success');
       }
     });
 
-    // Événements de placement
     this.socket.on('basePlaced', (data) => {
       this.trigger('basePlaced', data);
       if (data.success && data.playerId === this.playerId) {
-        this.showNotification('✅ Base placée !', 'success');
+        this.showNotification('Base placed!', 'success');
       } else if (data.success) {
-        this.showNotification(`${data.playerName} a placé sa base`, 'info');
+        this.showNotification(`${data.playerName} placed their base`, 'info');
       }
     });
 
@@ -96,50 +83,35 @@ class NetworkManager {
       this.trigger('placementUpdate', data);
     });
 
-    // Actions
     this.socket.on('actionResult', (data) => {
       this.trigger('actionResult', data);
     });
 
-    // Fin de partie
     this.socket.on('gameOver', (data) => {
       this.trigger('gameOver', data);
     });
 
-    // Erreurs
     this.socket.on('error', (message) => {
-      console.error('❌ Erreur serveur:', message);
       this.showNotification(message, 'error');
     });
 
-    // Infos
     this.socket.on('info', (message) => {
       this.showNotification(message, 'info');
     });
   }
 
-  // Méthodes d'envoi
   createRoom(playerName) {
-    if (!this.connected) {
-      console.error('Non connecté au serveur');
-      return;
-    }
+    if (!this.connected) return;
     this.socket.emit('createRoom', playerName);
   }
 
   joinRoom(code, playerName) {
-    if (!this.connected) {
-      console.error('Non connecté au serveur');
-      return;
-    }
+    if (!this.connected) return;
     this.socket.emit('joinRoom', { code, playerName });
   }
 
   startGame() {
-    if (!this.currentRoom) {
-      console.error('Pas de room active');
-      return;
-    }
+    if (!this.currentRoom) return;
     this.socket.emit('startGame', this.currentRoom);
   }
 
@@ -152,31 +124,6 @@ class NetworkManager {
     });
   }
 
-  expandTerritory(x, y) {
-    if (!this.currentRoom) return;
-    this.socket.emit('expandTerritory', {
-      roomCode: this.currentRoom,
-      x,
-      y
-    });
-  }
-
-  reinforceCell(x, y, count) {
-    if (!this.currentRoom) return;
-    this.socket.emit('reinforceCell', {
-      roomCode: this.currentRoom,
-      x,
-      y,
-      count
-    });
-  }
-
-  requestFullState() {
-    if (!this.currentRoom) return;
-    this.socket.emit('requestFullState', this.currentRoom);
-  }
-
-  // Système d'événements
   on(event, callback) {
     if (!this.callbacks[event]) {
       this.callbacks[event] = [];
@@ -190,7 +137,6 @@ class NetworkManager {
     }
   }
 
-  // Notifications
   showNotification(message, type = 'info') {
     const container = document.getElementById('notifications');
     if (!container) return;
@@ -198,7 +144,6 @@ class NetworkManager {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     
-    // Ajouter une icône selon le type
     const icons = {
       success: '✅',
       error: '❌',
@@ -224,5 +169,4 @@ class NetworkManager {
   }
 }
 
-// Instance globale
 const network = new NetworkManager();

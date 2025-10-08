@@ -1,9 +1,6 @@
-// client/js/ui.js
-
 class UIManager {
   constructor() {
     this.currentScreen = 'menuScreen';
-    this.panelCollapsed = false;
   }
 
   init() {
@@ -21,7 +18,7 @@ class UIManager {
     createBtn.addEventListener('click', () => {
       const playerName = document.getElementById('playerName').value.trim();
       if (!playerName || playerName.length < 2) {
-        network.showNotification('Nom invalide (min 2 caractères)', 'warning');
+        network.showNotification('Invalid name (min 2 chars)', 'warning');
         return;
       }
       network.createRoom(playerName);
@@ -36,12 +33,12 @@ class UIManager {
       const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
       
       if (!playerName || !roomCode) {
-        network.showNotification('Remplir tous les champs', 'warning');
+        network.showNotification('Fill all fields', 'warning');
         return;
       }
       
       if (roomCode.length !== 6) {
-        network.showNotification('Code invalide (6 caractères)', 'warning');
+        network.showNotification('Invalid code (6 chars)', 'warning');
         return;
       }
       
@@ -55,7 +52,7 @@ class UIManager {
     });
 
     document.getElementById('leaveLobbyBtn').addEventListener('click', () => {
-      if (confirm('Quitter le lobby ?')) {
+      if (confirm('Leave lobby?')) {
         location.reload();
       }
     });
@@ -63,7 +60,7 @@ class UIManager {
     document.getElementById('copyCodeBtn').addEventListener('click', () => {
       const code = document.getElementById('displayRoomCode').textContent;
       navigator.clipboard.writeText(code).then(() => {
-        network.showNotification('Code copié !', 'success');
+        network.showNotification('Code copied!', 'success');
       });
     });
   }
@@ -102,31 +99,10 @@ class UIManager {
       game.centerOnBase();
     });
 
-    document.getElementById('togglePanelBtn').addEventListener('click', () => {
-      this.toggleSidePanel();
-    });
-
     document.getElementById('leaveGameBtn').addEventListener('click', () => {
-      if (confirm('Quitter la partie ?')) {
+      if (confirm('Leave game?')) {
         location.reload();
       }
-    });
-
-    // Bouton d'expansion
-    document.getElementById('expandCellBtn').addEventListener('click', () => {
-      if (game.selectedCell) {
-        game.expandToCell(game.selectedCell.x, game.selectedCell.y);
-      }
-    });
-
-    // Boutons de bâtiments
-    document.querySelectorAll('.building-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const buildingType = btn.dataset.building;
-        if (game.selectedCell) {
-          game.buildBuilding(game.selectedCell.x, game.selectedCell.y, buildingType);
-        }
-      });
     });
   }
 
@@ -135,97 +111,12 @@ class UIManager {
 
     document.getElementById('hudPlayerName').textContent = player.name;
     document.getElementById('hudPlayerColor').style.background = player.color;
-    document.getElementById('hudGold').textContent = player.gold;
-    document.getElementById('hudIncome').textContent = player.income;
-    document.getElementById('hudTroops').textContent = player.troops;
+    document.getElementById('hudGold').textContent = Math.floor(player.gold);
+    document.getElementById('hudIncome').textContent = Math.floor(player.income);
+    document.getElementById('hudTroops').textContent = Math.floor(player.troops);
     
     const cells = mapData?.cells?.filter(c => c.o === player.id).length || 0;
     document.getElementById('hudCells').textContent = cells;
-
-    // Mettre à jour les stats du panneau
-    document.getElementById('statTerritories').textContent = cells;
-    document.getElementById('statTroops').textContent = player.troops;
-    document.getElementById('statIncome').textContent = player.income;
-    document.getElementById('statGold').textContent = player.gold;
-    
-    const cities = mapData?.cells?.filter(c => c.o === player.id && c.b === 'city').length || 0;
-    document.getElementById('statCities').textContent = cities;
-  }
-
-  showCellPanel(x, y, mapData, gameState) {
-    const section = document.getElementById('cellInfoSection');
-    section.classList.remove('hidden');
-
-    const cellData = mapData.cells.find(c => c.x === x && c.y === y);
-    if (!cellData) {
-      section.classList.add('hidden');
-      return;
-    }
-
-    let ownerName = 'Neutral';
-    let isOurs = false;
-    
-    if (cellData.o) {
-      const owner = gameState.players.find(p => p.id === cellData.o);
-      ownerName = owner ? owner.name : 'Unknown';
-      isOurs = cellData.o === network.playerId;
-    }
-
-    document.getElementById('cellOwner').textContent = ownerName;
-    document.getElementById('cellTroops').textContent = cellData.tr || 0;
-    
-    const buildingNames = {
-      city: '🏛️ City',
-      port: '⚓ Port',
-      outpost: '🏰 Outpost',
-      barracks: '⚔️ Barracks'
-    };
-    document.getElementById('cellBuilding').textContent = cellData.b ? buildingNames[cellData.b] : 'None';
-
-    // Bouton d'expansion
-    const expandBtn = document.getElementById('expandCellBtn');
-    const isAdjacent = this.isCellAdjacentToPlayer(x, y, network.playerId, mapData);
-
-    if (isOurs) {
-      expandBtn.style.display = 'none';
-    } else if (isAdjacent) {
-      expandBtn.style.display = 'block';
-      expandBtn.disabled = false;
-      if (cellData.o) {
-        expandBtn.textContent = `⚔️ Attack (Cost: 5 troops)`;
-        expandBtn.className = 'btn btn-danger';
-      } else {
-        expandBtn.textContent = `➕ Expand (Cost: 5 troops)`;
-        expandBtn.className = 'btn btn-primary';
-      }
-    } else {
-      expandBtn.style.display = 'block';
-      expandBtn.disabled = true;
-      expandBtn.textContent = '❌ Not adjacent';
-    }
-
-    // Bâtiments disponibles seulement sur notre territoire
-    const buildingBtns = document.querySelectorAll('.building-btn');
-    buildingBtns.forEach(btn => {
-      btn.disabled = !isOurs || cellData.b !== null;
-    });
-  }
-
-  hideCellPanel() {
-    document.getElementById('cellInfoSection').classList.add('hidden');
-  }
-
-  isCellAdjacentToPlayer(x, y, playerId, mapData) {
-    const directions = [
-      [-1,-1],[0,-1],[1,-1],
-      [-1,0],[1,0],
-      [-1,1],[0,1],[1,1]
-    ];
-
-    return directions.some(([dx, dy]) => {
-      const neighbor = mapData.cells.find(c => c.x === x + dx && c.y === y + dy);
-      return neighbor && neighbor.o === playerId;
-    });
   }
 
   showCellTooltip(mouseX, mouseY, x, y, mapData, gameState) {
@@ -238,7 +129,7 @@ class UIManager {
     }
 
     let ownerName = 'Neutral';
-    let ownerColor = '#888';
+    let ownerColor = '#8b92a8';
     
     if (cellData.o) {
       const owner = gameState.players.find(p => p.id === cellData.o);
@@ -257,13 +148,30 @@ class UIManager {
 
     tooltip.innerHTML = `
       <div class="owner" style="color: ${ownerColor}">${ownerName}</div>
-      <div class="stat"><span>Position:</span><span>(${x}, ${y})</span></div>
-      <div class="stat"><span>Troops:</span><span>${cellData.tr || 0}</span></div>
-      ${cellData.b ? `<div class="stat"><span>Building:</span><span>${buildingNames[cellData.b]}</span></div>` : ''}
+      <div class="stat">
+        <span>Troops:</span>
+        <span class="stat-value">${Math.floor(cellData.tr || 0)}</span>
+      </div>
+      ${cellData.b ? `<div class="stat">
+        <span>Building:</span>
+        <span class="stat-value">${buildingNames[cellData.b]}</span>
+      </div>` : ''}
     `;
 
-    tooltip.style.left = `${mouseX + 15}px`;
-    tooltip.style.top = `${mouseY + 15}px`;
+    const tooltipWidth = 160;
+    const tooltipHeight = 80;
+    let left = mouseX + 15;
+    let top = mouseY + 15;
+
+    if (left + tooltipWidth > window.innerWidth) {
+      left = mouseX - tooltipWidth - 15;
+    }
+    if (top + tooltipHeight > window.innerHeight) {
+      top = mouseY - tooltipHeight - 15;
+    }
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
     tooltip.classList.remove('hidden');
   }
 
@@ -271,33 +179,13 @@ class UIManager {
     document.getElementById('cellTooltip').classList.add('hidden');
   }
 
-  updateLeaderboard(players, mapData) {
-    const leaderboardList = document.getElementById('leaderboardList');
-    
-    const sorted = players.map(p => {
-      const cells = mapData.cells.filter(c => c.o === p.id).length;
-      return { ...p, cells };
-    }).sort((a, b) => b.cells - a.cells);
-
-    leaderboardList.innerHTML = sorted.slice(0, 5).map((p, i) => `
-      <div class="stat-row">
-        <span class="label">
-          ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
-          <span style="color: ${p.color}">●</span> ${p.name}
-        </span>
-        <span class="value">${p.cells}</span>
-      </div>
-    `).join('');
-  }
-
-  toggleSidePanel() {
-    const panel = document.getElementById('sidePanel');
-    this.panelCollapsed = !this.panelCollapsed;
-    panel.classList.toggle('collapsed', this.panelCollapsed);
-  }
-
   showGameOverModal(data) {
-    alert(`Game Over!\nWinner: ${data.winner.name}\nDuration: ${Math.floor(data.duration / 1000)}s`);
+    const duration = Math.floor((data.duration || 0) / 1000);
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+
+    alert(`Game Over!\nWinner: ${data.winner.name}\nDuration: ${minutes}m ${seconds}s`);
+    
     setTimeout(() => location.reload(), 2000);
   }
 

@@ -1,5 +1,3 @@
-// client/js/mapRenderer.js
-
 class MapRenderer {
   constructor(canvasId) {
     this.canvas = document.getElementById(canvasId);
@@ -7,35 +5,28 @@ class MapRenderer {
     this.width = 0;
     this.height = 0;
     
-    // Caméra et zoom
     this.camera = { x: 0, y: 0 };
     this.zoom = 1;
     this.minZoom = 0.5;
     this.maxZoom = 3;
     
-    // Taille des cellules
-    this.baseCellSize = 8; // pixels
+    this.baseCellSize = 8;
     
-    // Grille de carte
     this.mapData = null;
     this.gridWidth = 0;
     this.gridHeight = 0;
     
-    // Interaction
     this.hoveredCell = null;
     this.selectedCell = null;
     
-    // Couleurs
     this.colors = {
       water: '#1e3a5f',
       land: '#7cb342',
       landDark: '#558b2f',
       hover: 'rgba(255, 255, 255, 0.3)',
-      selected: 'rgba(52, 152, 219, 0.5)',
-      grid: 'rgba(0, 0, 0, 0.1)'
+      selected: 'rgba(52, 152, 219, 0.5)'
     };
     
-    // Performance
     this.lastRender = 0;
     this.fps = 60;
     this.frameTime = 1000 / this.fps;
@@ -43,7 +34,6 @@ class MapRenderer {
     this.resize();
     window.addEventListener('resize', () => this.resize());
     
-    // Contrôles
     this.setupControls();
   }
 
@@ -57,9 +47,8 @@ class MapRenderer {
     let lastX = 0;
     let lastY = 0;
 
-    // Déplacement de la caméra
     this.canvas.addEventListener('mousedown', (e) => {
-      if (e.button === 2) { // Clic droit
+      if (e.button === 2) {
         isDragging = true;
         lastX = e.clientX;
         lastY = e.clientY;
@@ -78,7 +67,6 @@ class MapRenderer {
         lastX = e.clientX;
         lastY = e.clientY;
       } else {
-        // Détection de la cellule survolée
         this.updateHoveredCell(e);
       }
     });
@@ -92,14 +80,12 @@ class MapRenderer {
       this.hoveredCell = null;
     });
 
-    // Zoom avec la molette
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
       const newZoom = this.zoom * delta;
       
       if (newZoom >= this.minZoom && newZoom <= this.maxZoom) {
-        // Zoomer vers la position de la souris
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -114,7 +100,6 @@ class MapRenderer {
       }
     });
 
-    // Désactiver le menu contextuel
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
@@ -148,13 +133,11 @@ class MapRenderer {
     this.gridWidth = mapData.width;
     this.gridHeight = mapData.height;
     
-    // Centrer la caméra sur la carte
     this.camera.x = this.gridWidth / 2 - (this.width / (2 * this.baseCellSize * this.zoom));
     this.camera.y = this.gridHeight / 2 - (this.height / (2 * this.baseCellSize * this.zoom));
   }
 
   render(gameState, now = Date.now()) {
-    // Limiter le framerate
     if (now - this.lastRender < this.frameTime) {
       return;
     }
@@ -162,43 +145,36 @@ class MapRenderer {
 
     if (!this.mapData || !gameState) return;
 
-    // Effacer le canvas
     this.ctx.fillStyle = this.colors.water;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
     const cellSize = this.baseCellSize * this.zoom;
     
-    // Calculer les cellules visibles
     const startX = Math.max(0, Math.floor(this.camera.x));
     const startY = Math.max(0, Math.floor(this.camera.y));
     const endX = Math.min(this.gridWidth, Math.ceil(this.camera.x + this.width / cellSize));
     const endY = Math.min(this.gridHeight, Math.ceil(this.camera.y + this.height / cellSize));
 
-    // Dessiner les cellules
     for (let y = startY; y < endY; y++) {
       for (let x = startX; x < endX; x++) {
         this.renderCell(x, y, gameState.players, cellSize);
       }
     }
 
-    // Dessiner les bases des joueurs
     gameState.players.forEach(player => {
       if (player.baseX !== null && player.baseY !== null) {
         this.renderPlayerBase(player, cellSize);
       }
     });
 
-    // Dessiner la cellule survolée
     if (this.hoveredCell) {
       this.highlightCell(this.hoveredCell.x, this.hoveredCell.y, this.colors.hover, cellSize);
     }
 
-    // Dessiner la cellule sélectionnée
     if (this.selectedCell) {
       this.highlightCell(this.selectedCell.x, this.selectedCell.y, this.colors.selected, cellSize);
     }
 
-    // Dessiner la minimap
     this.renderMinimap(gameState);
   }
 
@@ -206,10 +182,8 @@ class MapRenderer {
     const screenX = (x - this.camera.x) * cellSize;
     const screenY = (y - this.camera.y) * cellSize;
     
-    // Trouver les données de la cellule
     const cellData = this.mapData.cells.find(c => c.x === x && c.y === y);
     
-    // Si pas de données, c'est de l'eau par défaut
     if (!cellData) {
       this.ctx.fillStyle = this.colors.water;
       this.ctx.fillRect(screenX, screenY, cellSize, cellSize);
@@ -218,8 +192,8 @@ class MapRenderer {
 
     let color = this.colors.water;
     
-    if (cellData.t === 'l') { // land
-      if (cellData.o) { // owned
+    if (cellData.t === 'l') {
+      if (cellData.o) {
         const player = players.find(p => p.id === cellData.o);
         color = player ? player.color : this.colors.land;
       } else {
@@ -230,21 +204,31 @@ class MapRenderer {
     this.ctx.fillStyle = color;
     this.ctx.fillRect(screenX, screenY, cellSize, cellSize);
 
-    // Bordure pour les cellules occupées
     if (cellData.o && cellSize > 4) {
       this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
       this.ctx.lineWidth = 1;
       this.ctx.strokeRect(screenX, screenY, cellSize, cellSize);
     }
 
-    // Afficher les troupes si assez de zoom
     if (cellData.tr > 0 && this.zoom > 1.5) {
       this.ctx.fillStyle = 'white';
       this.ctx.font = `${Math.floor(cellSize * 0.6)}px Arial`;
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
       this.ctx.fillText(
-        cellData.tr,
+        Math.floor(cellData.tr),
+        screenX + cellSize / 2,
+        screenY + cellSize / 2
+      );
+    }
+
+    if (cellData.b && this.zoom > 1.2) {
+      const icons = { city: '🏛️', port: '⚓', outpost: '🏰', barracks: '⚔️' };
+      this.ctx.font = `${Math.floor(cellSize * 0.8)}px Arial`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(
+        icons[cellData.b] || '',
         screenX + cellSize / 2,
         screenY + cellSize / 2
       );
@@ -255,7 +239,6 @@ class MapRenderer {
     const screenX = (player.baseX - this.camera.x) * cellSize;
     const screenY = (player.baseY - this.camera.y) * cellSize;
     
-    // Dessiner un cercle pour la base
     const baseRadius = cellSize * 2;
     this.ctx.fillStyle = player.color;
     this.ctx.beginPath();
@@ -268,12 +251,10 @@ class MapRenderer {
     );
     this.ctx.fill();
     
-    // Bordure
     this.ctx.strokeStyle = 'white';
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
     
-    // Nom du joueur si assez de zoom
     if (this.zoom > 1) {
       this.ctx.fillStyle = 'white';
       this.ctx.font = 'bold 12px Arial';
@@ -299,48 +280,43 @@ class MapRenderer {
   }
 
   renderMinimap(gameState) {
-    const minimapSize = 150;
-    const minimapX = this.width - minimapSize - 10;
-    const minimapY = 10;
-    
-    // Fond de la minimap
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    this.ctx.fillRect(minimapX, minimapY, minimapSize, minimapSize);
-    
-    // Bordure
-    this.ctx.strokeStyle = 'white';
-    this.ctx.lineWidth = 2;
-    this.ctx.strokeRect(minimapX, minimapY, minimapSize, minimapSize);
-    
-    // Dessiner une version simplifiée de la carte
-    const scaleX = minimapSize / this.gridWidth;
-    const scaleY = minimapSize / this.gridHeight;
-    
+    const minimapCanvas = document.getElementById('minimapCanvas');
+    if (!minimapCanvas) return;
+
+    const ctx = minimapCanvas.getContext('2d');
+    const width = minimapCanvas.width = 180;
+    const height = minimapCanvas.height = 140;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, width, height);
+
+    const scaleX = width / this.gridWidth;
+    const scaleY = height / this.gridHeight;
+
     this.mapData.cells.forEach(cell => {
       if (cell.t === 'l') {
-        const x = minimapX + cell.x * scaleX;
-        const y = minimapY + cell.y * scaleY;
-        
+        const x = cell.x * scaleX;
+        const y = cell.y * scaleY;
+
         if (cell.o) {
           const player = gameState.players.find(p => p.id === cell.o);
-          this.ctx.fillStyle = player ? player.color : this.colors.land;
+          ctx.fillStyle = player ? player.color : this.colors.land;
         } else {
-          this.ctx.fillStyle = this.colors.landDark;
+          ctx.fillStyle = this.colors.landDark;
         }
-        
-        this.ctx.fillRect(x, y, Math.max(1, scaleX), Math.max(1, scaleY));
+
+        ctx.fillRect(x, y, Math.max(1, scaleX), Math.max(1, scaleY));
       }
     });
-    
-    // Dessiner la vue actuelle
-    const viewX = minimapX + this.camera.x * scaleX;
-    const viewY = minimapY + this.camera.y * scaleY;
+
+    const viewX = this.camera.x * scaleX;
+    const viewY = this.camera.y * scaleY;
     const viewW = (this.width / (this.baseCellSize * this.zoom)) * scaleX;
     const viewH = (this.height / (this.baseCellSize * this.zoom)) * scaleY;
-    
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-    this.ctx.lineWidth = 2;
-    this.ctx.strokeRect(viewX, viewY, viewW, viewH);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(viewX, viewY, viewW, viewH);
   }
 
   centerOnBase(baseX, baseY) {
@@ -350,9 +326,5 @@ class MapRenderer {
 
   setSelectedCell(cell) {
     this.selectedCell = cell;
-  }
-
-  getHoveredCell() {
-    return this.hoveredCell;
   }
 }

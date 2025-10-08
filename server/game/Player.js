@@ -1,33 +1,31 @@
-// server/game/Player.js
-
 class Player {
   constructor(id, name) {
     this.id = id;
     this.name = name;
     this.color = this.generateColor();
-    this.gold = 1000; // Or de départ
-    this.income = 0; // Revenu par seconde
-    this.troops = 0; // Total des troupes
+    this.gold = 1000;
+    this.income = 0;
+    this.troops = 0;
     this.isBot = false;
-    this.alliances = []; // IDs des alliés
-    this.kills = 0; // Nombre de joueurs éliminés
-    this.conquests = 0; // Nombre de territoires conquis
+    this.alliances = [];
+    this.kills = 0;
+    this.conquests = 0;
   }
 
   generateColor() {
     const colors = [
-      '#FF6B6B', // Rouge
-      '#4ECDC4', // Turquoise
-      '#45B7D1', // Bleu
-      '#FFA07A', // Saumon
-      '#98D8C8', // Vert d'eau
-      '#F7DC6F', // Jaune
-      '#BB8FCE', // Violet
-      '#85C1E2', // Bleu clair
-      '#F39C12', // Orange
-      '#E74C3C', // Rouge foncé
-      '#3498DB', // Bleu roi
-      '#2ECC71'  // Vert
+      '#FF6B6B',
+      '#4ECDC4',
+      '#45B7D1',
+      '#FFA07A',
+      '#98D8C8',
+      '#F7DC6F',
+      '#BB8FCE',
+      '#85C1E2',
+      '#F39C12',
+      '#E74C3C',
+      '#3498DB',
+      '#2ECC71'
     ];
     return colors[Math.floor(Math.random() * colors.length)];
   }

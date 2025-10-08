@@ -1,5 +1,3 @@
-// client/js/game.js
-
 class Game {
   constructor() {
     this.renderer = null;
@@ -12,17 +10,13 @@ class Game {
   }
 
   async init() {
-    console.log('🎮 Initialisation WorldConquest.io...');
-
     this.ui = new UIManager();
     this.ui.init();
 
     try {
       await network.connect();
-      console.log('✅ Connecté au serveur');
     } catch (error) {
-      console.error('❌ Erreur connexion:', error);
-      network.showNotification('Impossible de se connecter', 'error');
+      network.showNotification('Cannot connect to server', 'error');
       return;
     }
 
@@ -47,7 +41,6 @@ class Game {
     });
 
     network.on('gameStarted', (data) => {
-      console.log('🎯 Phase de placement');
       this.startPlacementPhase(data.room);
     });
 
@@ -79,7 +72,7 @@ class Game {
 
     network.on('actionResult', (data) => {
       if (!data.success) {
-        network.showNotification(data.reason || 'Action impossible', 'error');
+        network.showNotification(data.reason || 'Action failed', 'error');
       } else if (data.message) {
         network.showNotification(data.message, 'success');
       }
@@ -119,7 +112,6 @@ class Game {
   }
 
   startPlayingPhase() {
-    console.log('🎮 Phase de jeu démarrée');
     this.currentPhase = 'playing';
 
     if (this.placementManager) {
@@ -148,6 +140,7 @@ class Game {
 
     canvas.addEventListener('click', (e) => {
       if (this.currentPhase !== 'playing') return;
+      if (radialMenu.isOpen) return;
 
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -156,13 +149,25 @@ class Game {
       const cell = this.renderer.getCellAtPosition(x, y);
       
       if (cell) {
-        this.onCellClick(cell.x, cell.y);
+        const cellData = this.mapData.cells.find(c => c.x === cell.x && c.y === cell.y);
+        if (cellData && cellData.t === 'l') {
+          radialMenu.open(e.clientX, e.clientY, cellData, this.currentGameState);
+        }
       }
     });
 
-    // Hover pour tooltip
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (radialMenu.isOpen) {
+        radialMenu.close();
+      }
+    });
+
     canvas.addEventListener('mousemove', (e) => {
-      if (this.currentPhase !== 'playing') return;
+      if (this.currentPhase !== 'playing' || radialMenu.isOpen) {
+        this.ui.hideCellTooltip();
+        return;
+      }
 
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -180,55 +185,6 @@ class Game {
     canvas.addEventListener('mouseleave', () => {
       this.ui.hideCellTooltip();
     });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.currentPhase === 'playing') {
-        this.deselectCell();
-      }
-    });
-  }
-
-  onCellClick(x, y) {
-    const cell = this.mapData.cells.find(c => c.x === x && c.y === y);
-    if (!cell || cell.t !== 'l') return;
-
-    // Si c'est notre territoire, sélectionner
-    if (cell.o === network.playerId) {
-      this.selectCell(x, y);
-    } 
-    // Si c'est adjacent, tenter d'étendre
-    else if (this.isAdjacentToPlayer(x, y)) {
-      this.expandToCell(x, y);
-    }
-    // Sinon, juste sélectionner pour voir les infos
-    else {
-      this.selectCell(x, y);
-    }
-  }
-
-  isAdjacentToPlayer(x, y) {
-    const directions = [
-      [-1,-1],[0,-1],[1,-1],
-      [-1,0],[1,0],
-      [-1,1],[0,1],[1,1]
-    ];
-
-    return directions.some(([dx, dy]) => {
-      const neighbor = this.mapData.cells.find(c => c.x === x + dx && c.y === y + dy);
-      return neighbor && neighbor.o === network.playerId;
-    });
-  }
-
-  selectCell(x, y) {
-    this.selectedCell = { x, y };
-    this.renderer.setSelectedCell({ x, y });
-    this.ui.showCellPanel(x, y, this.mapData, this.currentGameState);
-  }
-
-  deselectCell() {
-    this.selectedCell = null;
-    this.renderer.setSelectedCell(null);
-    this.ui.hideCellPanel();
   }
 
   handleGridUpdate(data) {
@@ -259,14 +215,6 @@ class Game {
       if (currentPlayer) {
         this.ui.updateGameHUD(currentPlayer, this.mapData);
       }
-      
-      // Mettre à jour le leaderboard
-      this.ui.updateLeaderboard(data.players, this.mapData);
-    }
-
-    // Mettre à jour le panneau si une cellule est sélectionnée
-    if (this.selectedCell) {
-      this.ui.showCellPanel(this.selectedCell.x, this.selectedCell.y, this.mapData, this.currentGameState);
     }
   }
 
@@ -278,10 +226,6 @@ class Game {
     const currentPlayer = state.players.find(p => p.id === network.playerId);
     if (currentPlayer) {
       this.ui.updateGameHUD(currentPlayer, this.mapData);
-    }
-
-    if (this.selectedCell) {
-      this.ui.showCellPanel(this.selectedCell.x, this.selectedCell.y, this.mapData, state);
     }
   }
 
@@ -299,8 +243,8 @@ class Game {
   onGameOver(data) {
     const isWinner = data.winner.id === network.playerId;
     const message = isWinner 
-      ? `🎉 Victoire ! Vous avez conquis l'Europe !`
-      : `👑 ${data.winner.name} a conquis l'Europe !`;
+      ? `Victory! You conquered Europe!`
+      : `${data.winner.name} conquered Europe!`;
     
     network.showNotification(message, isWinner ? 'success' : 'info');
     
@@ -309,7 +253,6 @@ class Game {
     }, 2000);
   }
 
-  // Actions du joueur
   expandToCell(x, y) {
     network.socket.emit('expandTerritory', {
       roomCode: network.currentRoom,
@@ -331,12 +274,8 @@ class Game {
     const currentPlayer = this.currentGameState?.players?.find(p => p.id === network.playerId);
     if (currentPlayer && currentPlayer.baseX !== null && this.renderer) {
       this.renderer.centerOnBase(currentPlayer.baseX, currentPlayer.baseY);
-      network.showNotification('Centré sur votre base', 'info');
+      network.showNotification('Centered on your base', 'info');
     }
-  }
-
-  stop() {
-    this.currentPhase = 'menu';
   }
 }
 

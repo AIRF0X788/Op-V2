@@ -80,115 +80,38 @@
 
   <!-- Écran de jeu -->
   <div id="gameScreen" class="screen">
-    <!-- HUD supérieur -->
+    <!-- HUD supérieur minimaliste -->
     <div class="game-hud">
-      <div class="hud-left">
-        <div class="player-info">
-          <span class="player-color" id="hudPlayerColor"></span>
-          <span class="player-name" id="hudPlayerName"></span>
-        </div>
-        <div class="resource-display">
-          <span class="resource">💰 <strong id="hudGold">0</strong></span>
-          <span class="resource">📈 <strong id="hudIncome">0</strong>/s</span>
-          <span class="resource">⚔️ <strong id="hudTroops">0</strong></span>
-          <span class="resource">🏠 <strong id="hudCells">0</strong></span>
-        </div>
+      <div class="player-info">
+        <span class="player-color" id="hudPlayerColor"></span>
+        <span class="player-name" id="hudPlayerName"></span>
       </div>
-      
-      <div class="hud-right">
-        <button id="togglePanelBtn" class="btn btn-small">📊</button>
-        <button id="centerBaseBtn" class="btn btn-small">🎯</button>
-        <button id="leaveGameBtn" class="btn btn-small btn-danger">Leave</button>
+      <div class="resource-display">
+        <span class="resource">💰 <strong id="hudGold">0</strong></span>
+        <span class="resource">📈 <strong id="hudIncome">0</strong>/s</span>
+        <span class="resource">⚔️ <strong id="hudTroops">0</strong></span>
+        <span class="resource">🏠 <strong id="hudCells">0</strong></span>
       </div>
     </div>
 
     <!-- Canvas de jeu -->
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Panneau latéral -->
-    <div id="sidePanel" class="side-panel">
-      <!-- Selected Cell Info -->
-      <div id="cellInfoSection" class="panel-section hidden">
-        <h3>Selected Cell</h3>
-        <div class="stat-row">
-          <span class="label">Owner:</span>
-          <span class="value" id="cellOwner">-</span>
-        </div>
-        <div class="stat-row">
-          <span class="label">Troops:</span>
-          <span class="value" id="cellTroops">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="label">Building:</span>
-          <span class="value" id="cellBuilding">None</span>
-        </div>
-        <button id="expandCellBtn" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
-          ➕ Expand (Cost: <span id="expandCost">5</span> troops)
-        </button>
-      </div>
-
-      <!-- Buildings -->
-      <div id="buildingsSection" class="panel-section">
-        <h3>🏗️ Buildings</h3>
-        <div class="building-grid">
-          <button class="building-btn" data-building="city">
-            <div class="icon">🏛️</div>
-            <div class="name">City</div>
-            <div class="cost">💰 500</div>
-          </button>
-          <button class="building-btn" data-building="port">
-            <div class="icon">⚓</div>
-            <div class="name">Port</div>
-            <div class="cost">💰 300</div>
-          </button>
-          <button class="building-btn" data-building="outpost">
-            <div class="icon">🏰</div>
-            <div class="name">Outpost</div>
-            <div class="cost">💰 200</div>
-          </button>
-          <button class="building-btn" data-building="barracks">
-            <div class="icon">⚔️</div>
-            <div class="name">Barracks</div>
-            <div class="cost">💰 400</div>
-          </button>
-        </div>
-      </div>
-
-      <!-- Stats -->
-      <div class="panel-section">
-        <h3>📊 Statistics</h3>
-        <div class="stat-row">
-          <span class="label">Territories:</span>
-          <span class="value" id="statTerritories">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="label">Total Troops:</span>
-          <span class="value" id="statTroops">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="label">Income/s:</span>
-          <span class="value" id="statIncome">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="label">Gold:</span>
-          <span class="value" id="statGold">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="label">Cities:</span>
-          <span class="value" id="statCities">0</span>
-        </div>
-      </div>
-
-      <!-- Leaderboard -->
-      <div class="panel-section">
-        <h3>🏆 Leaderboard</h3>
-        <div id="leaderboardList"></div>
-      </div>
+    <!-- Menu radial (OpenFront style) -->
+    <div id="radialMenu" class="radial-menu hidden">
+      <div class="radial-center" id="radialCenter">📍</div>
+      <!-- Les items seront ajoutés dynamiquement en JavaScript -->
     </div>
 
     <!-- Minimap -->
     <div class="minimap-container">
       <canvas id="minimapCanvas"></canvas>
+    </div>
+
+    <!-- Boutons de contrôle -->
+    <div class="control-buttons">
+      <div class="control-btn" id="centerBaseBtn" title="Center on base">🎯</div>
+      <div class="control-btn" id="leaveGameBtn" title="Leave game">🚪</div>
     </div>
 
     <!-- Cell Tooltip -->
@@ -203,6 +126,7 @@
   <script src="js/network.js"></script>
   <script src="js/mapRenderer.js"></script>
   <script src="js/placement.js"></script>
+  <script src="js/radialMenu.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/game.js"></script>
   <script src="js/main.js"></script>

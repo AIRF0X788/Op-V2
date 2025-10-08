@@ -28,6 +28,9 @@ class RadialMenu {
   open(x, y, cellData, gameState) {
     this.selectedCell = { x, y, data: cellData };
     
+    // CORRECTION: Retirer la classe hidden pour rendre le menu visible
+    this.container.classList.remove('hidden');
+    
     this.container.style.left = `${x - 140}px`;
     this.container.style.top = `${y - 140}px`;
     
@@ -44,6 +47,8 @@ class RadialMenu {
     this.isOpen = false;
     setTimeout(() => {
       this.clearItems();
+      // CORRECTION: Remettre la classe hidden pour cacher le menu
+      this.container.classList.add('hidden');
     }, 300);
     this.selectedCell = null;
   }

@@ -39,6 +39,18 @@ class NetworkManager {
       this.socket.on(event, (data) => this.trigger(event, data));
     });
 
+    this.socket.on('roomCreated', (data) => {
+      console.log('🎉 Room created event received:', data);
+      this.currentRoom = data.code;
+      console.log('✅ Current room set to:', this.currentRoom);
+    });
+
+    this.socket.on('roomJoined', (data) => {
+      console.log('🎉 Room joined event received:', data);
+      this.currentRoom = data.room.code;
+      console.log('✅ Current room set to:', this.currentRoom);
+    });
+
     this.socket.on('playerJoined', () => {
       this.showNotification('A player joined', 'info');
     });

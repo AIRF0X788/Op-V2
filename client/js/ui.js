@@ -4,9 +4,11 @@ class UIManager {
   }
 
   init() {
+    console.log('🎮 UI Manager initializing...');
     this.setupMenuScreen();
     this.setupLobbyScreen();
     this.setupGameScreen();
+    console.log('✅ UI Manager initialized');
   }
 
   setupMenuScreen() {
@@ -15,8 +17,16 @@ class UIManager {
     const joinForm = document.getElementById('joinRoomForm');
     const confirmJoinBtn = document.getElementById('confirmJoinBtn');
 
+    if (!createBtn || !joinBtn || !confirmJoinBtn) {
+      console.error('❌ Menu buttons not found!');
+      return;
+    }
+
     createBtn.addEventListener('click', () => {
+      console.log('🎯 Create Room clicked');
       const playerName = document.getElementById('playerName').value.trim();
+      console.log('Player name:', playerName);
+      
       if (!playerName || playerName.length < 2) {
         network.showNotification('Invalid name (min 2 chars)', 'warning');
         return;
@@ -25,10 +35,12 @@ class UIManager {
     });
 
     joinBtn.addEventListener('click', () => {
+      console.log('🎯 Join Room clicked');
       joinForm.classList.toggle('hidden');
     });
 
     confirmJoinBtn.addEventListener('click', () => {
+      console.log('🎯 Confirm Join clicked');
       const playerName = document.getElementById('playerName').value.trim();
       const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
       
@@ -44,26 +56,56 @@ class UIManager {
       
       network.joinRoom(roomCode, playerName);
     });
+
+    console.log('✅ Menu screen setup complete');
   }
 
   setupLobbyScreen() {
-    document.getElementById('startGameBtn').addEventListener('click', () => {
+    const startBtn = document.getElementById('startGameBtn');
+    const leaveBtn = document.getElementById('leaveLobbyBtn');
+    const copyBtn = document.getElementById('copyCodeBtn');
+
+    if (!startBtn || !leaveBtn || !copyBtn) {
+      console.error('❌ Lobby buttons not found!');
+      return;
+    }
+
+    startBtn.addEventListener('click', () => {
+      console.log('🚀 START GAME CLICKED!');
+      console.log('Current room:', network.currentRoom);
+      console.log('Player ID:', network.playerId);
+      
+      if (!network.currentRoom) {
+        console.error('❌ No current room!');
+        network.showNotification('No room found', 'error');
+        return;
+      }
+      
+      console.log('📤 Sending startGame event...');
       network.startGame();
     });
 
-    document.getElementById('leaveLobbyBtn').addEventListener('click', () => {
+    leaveBtn.addEventListener('click', () => {
+      console.log('🚪 Leave lobby clicked');
       if (confirm('Leave lobby?')) location.reload();
     });
 
-    document.getElementById('copyCodeBtn').addEventListener('click', () => {
+    copyBtn.addEventListener('click', () => {
+      console.log('📋 Copy code clicked');
       const code = document.getElementById('displayRoomCode').textContent;
       navigator.clipboard.writeText(code).then(() => {
         network.showNotification('Code copied!', 'success');
+      }).catch(err => {
+        console.error('Copy failed:', err);
       });
     });
+
+    console.log('✅ Lobby screen setup complete');
   }
 
   updateLobby(roomData) {
+    console.log('📊 Updating lobby with data:', roomData);
+    
     document.getElementById('displayRoomCode').textContent = roomData.code;
 
     const playersList = document.getElementById('playersList');
@@ -84,22 +126,40 @@ class UIManager {
     });
 
     const startBtn = document.getElementById('startGameBtn');
+    console.log('Player ID:', network.playerId);
+    console.log('Host ID:', roomData.hostId);
+    console.log('Is host?', network.playerId === roomData.hostId);
+    
     if (network.playerId === roomData.hostId) {
       startBtn.style.display = 'block';
       startBtn.disabled = roomData.players.length < 1;
+      console.log('✅ Start button visible (you are host)');
     } else {
       startBtn.style.display = 'none';
+      console.log('ℹ️ Start button hidden (not host)');
     }
   }
 
   setupGameScreen() {
-    document.getElementById('centerBaseBtn').addEventListener('click', () => {
+    const centerBtn = document.getElementById('centerBaseBtn');
+    const leaveBtn = document.getElementById('leaveGameBtn');
+
+    if (!centerBtn || !leaveBtn) {
+      console.error('❌ Game screen buttons not found!');
+      return;
+    }
+
+    centerBtn.addEventListener('click', () => {
+      console.log('🎯 Center on base clicked');
       game.centerOnBase();
     });
 
-    document.getElementById('leaveGameBtn').addEventListener('click', () => {
+    leaveBtn.addEventListener('click', () => {
+      console.log('🚪 Leave game clicked');
       if (confirm('Leave game?')) location.reload();
     });
+
+    console.log('✅ Game screen setup complete');
   }
 
   updateGameHUD(player, mapData) {
@@ -182,6 +242,8 @@ class UIManager {
   }
 
   switchScreen(screenId) {
+    console.log('🔄 Switching to screen:', screenId);
+    
     document.querySelectorAll('.screen').forEach(screen => {
       screen.classList.remove('active');
     });
@@ -190,6 +252,9 @@ class UIManager {
     if (screen) {
       screen.classList.add('active');
       this.currentScreen = screenId;
+      console.log('✅ Screen switched to:', screenId);
+    } else {
+      console.error('❌ Screen not found:', screenId);
     }
   }
 }

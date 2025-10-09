@@ -4,11 +4,11 @@ class RadialMenu {
     this.centerIcon = document.getElementById('radialCenter');
     this.isOpen = false;
     this.selectedCell = null;
+    this.currentGameState = null;
     this.items = [];
     this.radius = 110;
     this.itemSize = 80;
     
-    // Créer l'overlay pour fermer le menu
     this.createOverlay();
     this.setupGlobalListeners();
   }
@@ -21,14 +21,10 @@ class RadialMenu {
   }
 
   setupGlobalListeners() {
-    // Fermer avec Escape
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.isOpen) {
-        this.close();
-      }
+      if (e.key === 'Escape' && this.isOpen) this.close();
     });
 
-    // Fermer avec clic droit
     document.addEventListener('contextmenu', (e) => {
       if (this.isOpen) {
         e.preventDefault();
@@ -39,12 +35,11 @@ class RadialMenu {
 
   open(x, y, cellData, gameState) {
     this.selectedCell = { x, y, data: cellData };
+    this.currentGameState = gameState;
     
-    // Retirer la classe hidden et activer l'overlay
     this.container.classList.remove('hidden');
     this.overlay.classList.add('active');
     
-    // Positionner le menu en évitant les bords de l'écran
     const menuSize = 300;
     const padding = 20;
     
@@ -56,7 +51,6 @@ class RadialMenu {
     
     this.buildMenuItems(cellData, gameState);
     
-    // Animation d'ouverture avec délai
     setTimeout(() => {
       this.container.classList.add('active');
       this.isOpen = true;
@@ -74,17 +68,11 @@ class RadialMenu {
     }, 400);
     
     this.selectedCell = null;
+    this.currentGameState = null;
   }
 
   buildMenuItems(cellData, gameState) {
     this.clearItems();
-    
-    // 🔍 DEBUG: Voir les données
-    console.log('🔍 DEBUG Cell Data:', cellData);
-    console.log('🔍 DEBUG Network Player ID:', network.playerId);
-    console.log('🔍 DEBUG Game State Players:', gameState.players);
-    console.log('🔍 DEBUG Cell Owner:', cellData.o);
-    console.log('🔍 DEBUG Is Ours?', cellData.o === network.playerId);
     
     const isOurs = cellData.o === network.playerId;
     const isEnemy = cellData.o && cellData.o !== network.playerId;
@@ -93,7 +81,6 @@ class RadialMenu {
     const currentPlayer = gameState.players.find(p => p.id === network.playerId);
     const hasBuilding = cellData.b !== null;
     
-    // Mise à jour du centre avec couleurs dynamiques
     if (isOurs) {
       this.centerIcon.textContent = '✓';
       this.centerIcon.style.borderColor = currentPlayer?.color || '#4a9eff';
@@ -111,7 +98,6 @@ class RadialMenu {
     const actions = [];
     
     if (isOurs) {
-      // Renforcement
       actions.push({
         icon: '🛡️',
         label: 'Reinforce',
@@ -162,7 +148,6 @@ class RadialMenu {
       }
     }
     
-    // Toujours ajouter l'info
     actions.push({
       icon: 'ℹ️',
       label: 'Info',
@@ -184,9 +169,7 @@ class RadialMenu {
       
       const item = document.createElement('div');
       item.className = 'radial-item';
-      if (!action.canAfford) {
-        item.classList.add('disabled');
-      }
+      if (!action.canAfford) item.classList.add('disabled');
       
       item.style.left = `${x}px`;
       item.style.top = `${y}px`;
@@ -250,7 +233,7 @@ class RadialMenu {
         
       case 'info':
         this.showCellInfo();
-        return; // Ne pas fermer le menu pour l'info
+        return;
     }
     
     this.close();

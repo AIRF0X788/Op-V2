@@ -1,5 +1,3 @@
-// client/js/allianceSystem.js
-
 class AllianceSystem {
   constructor() {
     this.currentAlliances = new Set();
@@ -9,7 +7,6 @@ class AllianceSystem {
   }
 
   setupUI() {
-    // Ajouter le panneau d'alliances dans le HTML
     this.createAlliancePanel();
     this.createTradePanel();
     this.setupEventListeners();
@@ -42,7 +39,6 @@ class AllianceSystem {
 
     document.getElementById('gameScreen').appendChild(panel);
 
-    // Toggle panel
     document.getElementById('toggleAlliancePanel').addEventListener('click', () => {
       panel.classList.toggle('collapsed');
       const btn = document.getElementById('toggleAlliancePanel');
@@ -80,16 +76,11 @@ class AllianceSystem {
             <button id="cancelTrade" class="btn btn-secondary">Cancel</button>
           </div>
         </div>
-        <div id="activeTradeOffers" class="trade-offers hidden">
-          <h4>Active Offers:</h4>
-          <div id="tradeOffersList"></div>
-        </div>
       </div>
     `;
 
     document.getElementById('gameScreen').appendChild(panel);
 
-    // Event listeners
     document.getElementById('closeTradePanel').addEventListener('click', () => {
       this.hideTradePanel();
     });
@@ -104,7 +95,6 @@ class AllianceSystem {
   }
 
   setupEventListeners() {
-    // Écouter les événements du serveur
     network.on('allianceProposal', (data) => {
       this.handleAllianceProposal(data);
     });
@@ -179,7 +169,6 @@ class AllianceSystem {
       container.appendChild(playerDiv);
     });
 
-    // Ajouter les event listeners
     container.querySelectorAll('.btn-ally').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const playerId = e.target.dataset.playerId;
@@ -262,10 +251,8 @@ class AllianceSystem {
       fromId: fromId
     });
 
-    // Proposer en retour pour créer l'alliance
     this.proposeAlliance(fromId);
     
-    // Nettoyer l'UI
     const request = document.getElementById(`request-${fromId}`);
     if (request) request.remove();
     this.pendingRequests.delete(fromId);
@@ -294,7 +281,6 @@ class AllianceSystem {
   }
 
   handleAllianceFormed(data) {
-    // Mettre à jour la liste des alliances
     if (game.currentGameState) {
       const currentPlayer = game.currentGameState.players.find(p => p.id === network.playerId);
       if (currentPlayer && currentPlayer.allies) {
@@ -308,7 +294,6 @@ class AllianceSystem {
     this.handleAllianceFormed(data);
   }
 
-  // Système de commerce
   showTradePanel(targetId) {
     this.currentTradeTarget = targetId;
     const panel = document.getElementById('tradePanel');
@@ -366,9 +351,7 @@ class AllianceSystem {
 
     document.getElementById('notifications').appendChild(offerDiv);
 
-    setTimeout(() => {
-      offerDiv.remove();
-    }, 30000);
+    setTimeout(() => offerDiv.remove(), 30000);
   }
 
   acceptTrade(tradeId) {
@@ -385,7 +368,6 @@ class AllianceSystem {
     });
   }
 
-  // Animations de combat
   showCombatAnimation(data) {
     const cell = game.renderer?.getCellAtWorldPosition?.(data.x, data.y);
     if (!cell) return;
@@ -401,7 +383,6 @@ class AllianceSystem {
     setTimeout(() => animation.remove(), 1000);
   }
 
-  // Mettre à jour les infos du joueur
   updateFromGameState(gameState) {
     if (!gameState) return;
 
@@ -414,273 +395,5 @@ class AllianceSystem {
     this.updatePlayerList(gameState.players);
   }
 }
-
-// Styles CSS additionnels à ajouter dans style.css
-const allianceStyles = `
-.game-panel {
-  position: absolute;
-  top: 80px;
-  right: 20px;
-  width: 320px;
-  max-height: 500px;
-  background: rgba(26, 31, 46, 0.95);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  z-index: 100;
-  overflow: hidden;
-}
-
-.game-panel.collapsed .panel-content {
-  display: none;
-}
-
-.panel-header {
-  padding: 1rem;
-  background: var(--bg-dark);
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.panel-header h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: var(--accent-blue);
-}
-
-.panel-toggle, .close-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.2rem 0.5rem;
-}
-
-.panel-content {
-  padding: 1rem;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.alliance-section {
-  margin-bottom: 1.5rem;
-}
-
-.alliance-section h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.alliance-player-item {
-  background: var(--bg-dark);
-  border-radius: 8px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.2s;
-}
-
-.alliance-player-item:hover {
-  background: var(--bg-hover);
-}
-
-.player-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.player-stats {
-  display: flex;
-  gap: 0.75rem;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.player-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.btn-small {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.btn-ally {
-  background: var(--accent-blue);
-  color: white;
-}
-
-.btn-trade {
-  background: var(--accent-yellow);
-  color: white;
-}
-
-.btn-break {
-  background: var(--accent-red);
-  color: white;
-}
-
-.bot-badge, .ally-badge {
-  padding: 0.1rem 0.3rem;
-  border-radius: 3px;
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: bold;
-}
-
-.bot-badge {
-  background: var(--accent-purple);
-  color: white;
-}
-
-.ally-badge {
-  background: var(--accent-green);
-  color: white;
-}
-
-.alliance-request {
-  background: var(--bg-dark);
-  border-radius: 8px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.request-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.ally-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: var(--bg-dark);
-  border-radius: 6px;
-  margin-bottom: 0.25rem;
-}
-
-.no-allies {
-  color: var(--text-secondary);
-  font-style: italic;
-  text-align: center;
-  padding: 1rem;
-}
-
-/* Trade Panel */
-#tradePanel {
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 400px;
-}
-
-#tradePanel.hidden {
-  display: none;
-}
-
-.trade-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.trade-section {
-  background: var(--bg-dark);
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.trade-input {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 0.5rem;
-}
-
-.trade-input label {
-  flex: 0 0 80px;
-}
-
-.trade-input input {
-  flex: 1;
-  padding: 0.5rem;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-primary);
-}
-
-.trade-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-
-.trade-offer-notification {
-  background: rgba(26, 31, 46, 0.98);
-  border: 2px solid var(--accent-yellow);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 0.5rem;
-  animation: slideIn 0.3s ease;
-}
-
-.trade-header {
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: var(--accent-yellow);
-}
-
-.trade-details {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.combat-animation {
-  position: absolute;
-  font-size: 2rem;
-  animation: combatPulse 1s ease;
-  pointer-events: none;
-  z-index: 1000;
-}
-
-@keyframes combatPulse {
-  0% {
-    transform: scale(0.5) rotate(0deg);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(2) rotate(180deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.5) rotate(360deg);
-    opacity: 0;
-  }
-}
-`;
 
 const allianceSystem = new AllianceSystem();

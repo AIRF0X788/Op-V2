@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Écran de menu -->
   <div id="menuScreen" class="screen active">
     <div class="menu-container">
       <h1 class="game-title">⚔️ WorldConquest</h1>
@@ -31,7 +30,7 @@
         <h3>📖 How to Play</h3>
         <ul>
           <li>🎯 Click to place your capital</li>
-          <li>⚔️ Click adjacent cells to expand (costs troops)</li>
+          <li>⚔️ Click adjacent cells to expand</li>
           <li>🏗️ Build cities, ports, outposts</li>
           <li>💰 Manage economy and military</li>
           <li>👑 Conquer 80% of the map to win!</li>
@@ -40,7 +39,6 @@
     </div>
   </div>
 
-  <!-- Écran de lobby -->
   <div id="lobbyScreen" class="screen">
     <div class="lobby-container">
       <h2>🎮 Game Lobby</h2>
@@ -63,7 +61,6 @@
     </div>
   </div>
 
-  <!-- Écran de placement -->
   <div id="placementScreen" class="screen">
     <div class="placement-overlay">
       <div class="placement-info">
@@ -78,9 +75,7 @@
     <canvas id="placementCanvas"></canvas>
   </div>
 
-  <!-- Écran de jeu -->
   <div id="gameScreen" class="screen">
-    <!-- HUD supérieur minimaliste -->
     <div class="game-hud">
       <div class="player-info">
         <span class="player-color" id="hudPlayerColor"></span>
@@ -94,42 +89,34 @@
       </div>
     </div>
 
-    <!-- Canvas de jeu -->
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Menu radial (OpenFront style) -->
     <div id="radialMenu" class="radial-menu hidden">
       <div class="radial-center" id="radialCenter">📍</div>
-      <!-- Les items seront ajoutés dynamiquement en JavaScript -->
     </div>
 
-    <!-- Minimap -->
     <div class="minimap-container">
       <canvas id="minimapCanvas"></canvas>
     </div>
 
-    <!-- Boutons de contrôle -->
     <div class="control-buttons">
       <div class="control-btn" id="centerBaseBtn" title="Center on base">🎯</div>
       <div class="control-btn" id="leaveGameBtn" title="Leave game">🚪</div>
     </div>
 
-    <!-- Cell Tooltip -->
     <div id="cellTooltip" class="cell-tooltip hidden"></div>
   </div>
 
-  <!-- Notifications -->
   <div id="notifications" class="notifications"></div>
 
-  <!-- Scripts -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
-<script src="js/network.js"></script>
-<script src="js/mapRenderer.js"></script>
-<script src="js/placement.js"></script>
-<script src="js/radialMenu.js"></script>
-<script src="js/allianceSystem.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/game.js"></script>
-<script src="js/main.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/mapRenderer.js"></script>
+  <script src="js/placement.js"></script>
+  <script src="js/radialMenu.js"></script>
+  <script src="js/allianceSystem.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>

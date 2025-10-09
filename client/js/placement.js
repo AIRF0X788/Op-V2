@@ -32,9 +32,7 @@ class PlacementManager {
 
       const cell = this.renderer.getCellAtPosition(x, y);
       
-      if (cell) {
-        this.attemptPlaceBase(cell.x, cell.y);
-      }
+      if (cell) this.attemptPlaceBase(cell.x, cell.y);
     });
 
     this.canvas.addEventListener('mousemove', (e) => {
@@ -46,9 +44,7 @@ class PlacementManager {
 
       const cell = this.renderer.getCellAtPosition(x, y);
       
-      if (cell) {
-        this.showPlacementPreview(cell.x, cell.y);
-      }
+      if (cell) this.showPlacementPreview(cell.x, cell.y);
     });
   }
 
@@ -65,9 +61,7 @@ class PlacementManager {
   }
 
   onBasePlaced(data) {
-    if (data.playerId === network.playerId) {
-      this.hasPlaced = true;
-    }
+    if (data.playerId === network.playerId) this.hasPlaced = true;
     
     if (data.success) {
       if (data.playerId === network.playerId) {

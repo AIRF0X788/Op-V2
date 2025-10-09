@@ -138,9 +138,7 @@ class MapRenderer {
   }
 
   render(gameState, now = Date.now()) {
-    if (now - this.lastRender < this.frameTime) {
-      return;
-    }
+    if (now - this.lastRender < this.frameTime) return;
     this.lastRender = now;
 
     if (!this.mapData || !gameState) return;

@@ -22,73 +22,29 @@ class NetworkManager {
         this.showNotification('Connection lost', 'error');
       });
 
-      this.socket.on('connect_error', (error) => {
-        reject(error);
-      });
+      this.socket.on('connect_error', (error) => reject(error));
 
       this.setupEventListeners();
     });
   }
 
   setupEventListeners() {
-    this.socket.on('roomCreated', (data) => {
-      this.currentRoom = data.code;
-      this.trigger('roomCreated', data);
+    const events = [
+      'roomCreated', 'roomJoined', 'playerJoined', 'playerLeft',
+      'gameStarted', 'fullState', 'gridUpdate', 'phaseChanged',
+      'basePlaced', 'placementUpdate', 'actionResult', 'gameOver'
+    ];
+
+    events.forEach(event => {
+      this.socket.on(event, (data) => this.trigger(event, data));
     });
 
-    this.socket.on('roomJoined', (data) => {
-      this.currentRoom = data.room.code;
-      this.trigger('roomJoined', data);
-    });
-
-    this.socket.on('playerJoined', (data) => {
-      this.trigger('playerJoined', data);
+    this.socket.on('playerJoined', () => {
       this.showNotification('A player joined', 'info');
     });
 
-    this.socket.on('playerLeft', (data) => {
+    this.socket.on('playerLeft', () => {
       this.showNotification('A player left', 'warning');
-    });
-
-    this.socket.on('gameStarted', (data) => {
-      this.trigger('gameStarted', data);
-      this.showNotification('Game starting! Place your base', 'success');
-    });
-
-    this.socket.on('fullState', (state) => {
-      this.trigger('fullState', state);
-    });
-
-    this.socket.on('gridUpdate', (data) => {
-      this.trigger('gridUpdate', data);
-    });
-
-    this.socket.on('phaseChanged', (data) => {
-      this.trigger('phaseChanged', data);
-      if (data.phase === 'playing') {
-        this.showNotification('All players ready! Conquest begins!', 'success');
-      }
-    });
-
-    this.socket.on('basePlaced', (data) => {
-      this.trigger('basePlaced', data);
-      if (data.success && data.playerId === this.playerId) {
-        this.showNotification('Base placed!', 'success');
-      } else if (data.success) {
-        this.showNotification(`${data.playerName} placed their base`, 'info');
-      }
-    });
-
-    this.socket.on('placementUpdate', (data) => {
-      this.trigger('placementUpdate', data);
-    });
-
-    this.socket.on('actionResult', (data) => {
-      this.trigger('actionResult', data);
-    });
-
-    this.socket.on('gameOver', (data) => {
-      this.trigger('gameOver', data);
     });
 
     this.socket.on('error', (message) => {
@@ -101,39 +57,31 @@ class NetworkManager {
   }
 
   createRoom(playerName) {
-    if (!this.connected) return;
-    this.socket.emit('createRoom', playerName);
+    if (this.connected) this.socket.emit('createRoom', playerName);
   }
 
   joinRoom(code, playerName) {
-    if (!this.connected) return;
-    this.socket.emit('joinRoom', { code, playerName });
+    if (this.connected) this.socket.emit('joinRoom', { code, playerName });
   }
 
   startGame() {
-    if (!this.currentRoom) return;
-    this.socket.emit('startGame', this.currentRoom);
+    if (this.currentRoom) this.socket.emit('startGame', this.currentRoom);
   }
 
   placeBase(x, y) {
-    if (!this.currentRoom) return;
-    this.socket.emit('placeBase', {
-      roomCode: this.currentRoom,
-      x,
-      y
-    });
+    if (this.currentRoom) {
+      this.socket.emit('placeBase', { roomCode: this.currentRoom, x, y });
+    }
   }
 
   on(event, callback) {
-    if (!this.callbacks[event]) {
-      this.callbacks[event] = [];
-    }
+    if (!this.callbacks[event]) this.callbacks[event] = [];
     this.callbacks[event].push(callback);
   }
 
   trigger(event, data) {
     if (this.callbacks[event]) {
-      this.callbacks[event].forEach(callback => callback(data));
+      this.callbacks[event].forEach(cb => cb(data));
     }
   }
 
@@ -144,13 +92,7 @@ class NetworkManager {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     
-    const icons = {
-      success: '✅',
-      error: '❌',
-      warning: '⚠️',
-      info: 'ℹ️'
-    };
-    
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
     notification.innerHTML = `<span>${icons[type] || ''} ${message}</span>`;
     
     container.appendChild(notification);
@@ -163,9 +105,7 @@ class NetworkManager {
   }
 
   disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-    }
+    if (this.socket) this.socket.disconnect();
   }
 }
 

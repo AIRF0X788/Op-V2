@@ -109,9 +109,7 @@ class MapGrid {
     for (let dy = -radius; dy <= radius; dy++) {
       for (let dx = -radius; dx <= radius; dx++) {
         const cell = this.getCell(centerX + dx, centerY + dy);
-        if (cell && cell.owner) {
-          return false;
-        }
+        if (cell && cell.owner) return false;
       }
     }
     return true;

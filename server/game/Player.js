@@ -14,18 +14,9 @@ class Player {
 
   generateColor() {
     const colors = [
-      '#FF6B6B',
-      '#4ECDC4',
-      '#45B7D1',
-      '#FFA07A',
-      '#98D8C8',
-      '#F7DC6F',
-      '#BB8FCE',
-      '#85C1E2',
-      '#F39C12',
-      '#E74C3C',
-      '#3498DB',
-      '#2ECC71'
+      '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
+      '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
+      '#F39C12', '#E74C3C', '#3498DB', '#2ECC71'
     ];
     return colors[Math.floor(Math.random() * colors.length)];
   }
@@ -38,9 +29,7 @@ class Player {
 
   removeAlliance(playerId) {
     const index = this.alliances.indexOf(playerId);
-    if (index > -1) {
-      this.alliances.splice(index, 1);
-    }
+    if (index > -1) this.alliances.splice(index, 1);
   }
 
   isAlliedWith(playerId) {

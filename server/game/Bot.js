@@ -17,14 +17,8 @@ class Bot {
 
   generateColor() {
     const botColors = [
-      '#8B4513',
-      '#696969',
-      '#808000',
-      '#800080',
-      '#008080',
-      '#4B0082',
-      '#2F4F4F',
-      '#556B2F'
+      '#8B4513', '#696969', '#808000', '#800080',
+      '#008080', '#4B0082', '#2F4F4F', '#556B2F'
     ];
     return botColors[Math.floor(Math.random() * botColors.length)];
   }
@@ -34,24 +28,19 @@ class Bot {
     return strategies[Math.floor(Math.random() * strategies.length)];
   }
 
-  // NOUVELLE MÉTHODE: Vérifier si le bot est allié avec un joueur
   isAlliedWith(playerId) {
     return this.alliances.includes(playerId);
   }
 
-  // NOUVELLE MÉTHODE: Ajouter une alliance
   addAlliance(playerId) {
     if (!this.alliances.includes(playerId)) {
       this.alliances.push(playerId);
     }
   }
 
-  // NOUVELLE MÉTHODE: Retirer une alliance
   removeAlliance(playerId) {
     const index = this.alliances.indexOf(playerId);
-    if (index !== -1) {
-      this.alliances.splice(index, 1);
-    }
+    if (index !== -1) this.alliances.splice(index, 1);
   }
 
   toJSON() {

@@ -52,9 +52,7 @@ class UIManager {
     });
 
     document.getElementById('leaveLobbyBtn').addEventListener('click', () => {
-      if (confirm('Leave lobby?')) {
-        location.reload();
-      }
+      if (confirm('Leave lobby?')) location.reload();
     });
 
     document.getElementById('copyCodeBtn').addEventListener('click', () => {
@@ -100,9 +98,7 @@ class UIManager {
     });
 
     document.getElementById('leaveGameBtn').addEventListener('click', () => {
-      if (confirm('Leave game?')) {
-        location.reload();
-      }
+      if (confirm('Leave game?')) location.reload();
     });
   }
 
@@ -163,12 +159,8 @@ class UIManager {
     let left = mouseX + 15;
     let top = mouseY + 15;
 
-    if (left + tooltipWidth > window.innerWidth) {
-      left = mouseX - tooltipWidth - 15;
-    }
-    if (top + tooltipHeight > window.innerHeight) {
-      top = mouseY - tooltipHeight - 15;
-    }
+    if (left + tooltipWidth > window.innerWidth) left = mouseX - tooltipWidth - 15;
+    if (top + tooltipHeight > window.innerHeight) top = mouseY - tooltipHeight - 15;
 
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${top}px`;

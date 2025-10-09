@@ -79,6 +79,13 @@ class RadialMenu {
   buildMenuItems(cellData, gameState) {
     this.clearItems();
     
+    // 🔍 DEBUG: Voir les données
+    console.log('🔍 DEBUG Cell Data:', cellData);
+    console.log('🔍 DEBUG Network Player ID:', network.playerId);
+    console.log('🔍 DEBUG Game State Players:', gameState.players);
+    console.log('🔍 DEBUG Cell Owner:', cellData.o);
+    console.log('🔍 DEBUG Is Ours?', cellData.o === network.playerId);
+    
     const isOurs = cellData.o === network.playerId;
     const isEnemy = cellData.o && cellData.o !== network.playerId;
     const isAdjacent = this.isCellAdjacentToPlayer(cellData.x, cellData.y);

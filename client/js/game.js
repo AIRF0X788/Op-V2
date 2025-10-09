@@ -139,26 +139,37 @@ class Game {
     this.startGameLoop();
   }
 
+requestFullStateUpdate() {
+  if (network.currentRoom) {
+    network.socket.emit('requestFullState', network.currentRoom);
+  }
+}
+
   setupGameEvents() {
-    const canvas = document.getElementById('gameCanvas');
+  const canvas = document.getElementById('gameCanvas');
 
-    canvas.addEventListener('click', (e) => {
-      if (this.currentPhase !== 'playing') return;
-      if (radialMenu.isOpen) return;
+  canvas.addEventListener('click', (e) => {
+    if (this.currentPhase !== 'playing') return;
+    if (radialMenu.isOpen) return;
 
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-      const cell = this.renderer.getCellAtPosition(x, y);
+    const cell = this.renderer.getCellAtPosition(x, y);
 
-      if (cell) {
+    if (cell) {
+      // 🔧 CORRECTION: Forcer la synchronisation avant d'ouvrir le menu
+      this.requestFullStateUpdate();
+      
+      setTimeout(() => {
         const cellData = this.mapData.cells.find(c => c.x === cell.x && c.y === cell.y);
         if (cellData && cellData.t === 'l') {
           radialMenu.open(e.clientX, e.clientY, cellData, this.currentGameState);
         }
-      }
-    });
+      }, 100); // Petit délai pour recevoir les données
+    }
+  });
 
     canvas.addEventListener('contextmenu', (e) => {
       e.preventDefault();

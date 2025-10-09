@@ -1,4 +1,4 @@
-// server/game/GameRoom.js (remplacer l'ancien)
+// server/game/GameRoom.js (complet avec corrections)
 const Player = require('./Player');
 const Bot = require('./Bot');
 const BotAI = require('./BotAI');
@@ -235,6 +235,15 @@ class GameRoom {
     });
   }
 
+  // 🔧 MÉTHODE AJOUTÉE : queueChange pour synchroniser les données
+  queueChange(change) {
+    // Diffuse immédiatement le changement à tous les clients de la room
+    this.io.to(this.code).emit('gridUpdate', {
+      changes: [change],
+      players: this.getPlayersState()
+    });
+  }
+
   expandTerritory(playerId, targetX, targetY) {
     const player = this.players.get(playerId);
     if (!player) {
@@ -280,11 +289,31 @@ class GameRoom {
       targetCell.building = null;
       this.distributeTroopCost(targetX, targetY, playerId, expandCost + defenderTroops * 0.5);
       player.conquests++;
+      
+      // 🔧 AJOUTÉ : Diffuser le changement immédiatement
+      this.queueChange({
+        x: targetX,
+        y: targetY,
+        owner: playerId,
+        troops: Math.floor(targetCell.troops),
+        building: null
+      });
+      
       return { success: true, conquered: true, message: `Conquered from ${defender?.name}!` };
     } else {
       targetCell.owner = playerId;
       targetCell.troops = expandCost * 0.5;
       this.distributeTroopCost(targetX, targetY, playerId, expandCost);
+      
+      // 🔧 AJOUTÉ : Diffuser le changement immédiatement
+      this.queueChange({
+        x: targetX,
+        y: targetY,
+        owner: playerId,
+        troops: Math.floor(targetCell.troops),
+        building: null
+      });
+      
       return { success: true, conquered: false };
     }
   }
@@ -304,6 +333,16 @@ class GameRoom {
     }
     cell.troops += troopCount;
     player.gold -= cost;
+    
+    // 🔧 AJOUTÉ : Diffuser le changement immédiatement
+    this.queueChange({
+      x,
+      y,
+      owner: playerId,
+      troops: Math.floor(cell.troops),
+      building: cell.building
+    });
+    
     return { success: true, message: `+${troopCount} troops deployed` };
   }
 
@@ -330,6 +369,15 @@ class GameRoom {
       const proportion = n.cell.troops / totalTroops;
       const cost = totalCost * proportion;
       n.cell.troops = Math.max(0, n.cell.troops - cost);
+      
+      // 🔧 AJOUTÉ : Diffuser les changements des cellules adjacentes
+      this.queueChange({
+        x: n.x,
+        y: n.y,
+        owner: playerId,
+        troops: Math.floor(n.cell.troops),
+        building: n.cell.building
+      });
     });
   }
 
@@ -357,6 +405,16 @@ class GameRoom {
     }
     cell.building = buildingType;
     player.gold -= cost;
+    
+    // 🔧 AJOUTÉ : Diffuser le changement immédiatement
+    this.queueChange({
+      x,
+      y,
+      owner: playerId,
+      troops: Math.floor(cell.troops),
+      building: buildingType
+    });
+    
     return { success: true, message: `${buildingType} built!` };
   }
 

@@ -34,7 +34,9 @@ class RadialMenu {
   }
 
   open(x, y, cellData, gameState) {
-    this.selectedCell = { x, y, data: cellData };
+    console.log('Opening radial menu for cell:', cellData);
+    
+    this.selectedCell = cellData;
     this.currentGameState = gameState;
     
     this.container.classList.remove('hidden');
@@ -76,8 +78,21 @@ class RadialMenu {
     
     const isOurs = cellData.o === network.playerId;
     const isEnemy = cellData.o && cellData.o !== network.playerId;
+    const isNeutral = !cellData.o;
     const currentPlayer = gameState.players.find(p => p.id === network.playerId);
     const hasBuilding = cellData.b !== null;
+    
+    console.log('Cell analysis:', {
+      isOurs,
+      isEnemy,
+      isNeutral,
+      owner: cellData.o,
+      playerId: network.playerId,
+      hasBuilding
+    });
+    
+    const isAdjacent = this.checkAdjacent(cellData.x, cellData.y, network.playerId);
+    console.log('Is adjacent to player territory:', isAdjacent);
     
     if (isOurs) {
       this.centerIcon.textContent = '✓';
@@ -112,36 +127,46 @@ class RadialMenu {
           { icon: '⚔️', label: 'Barracks', cost: '400💰', action: 'buildBarracks', canAfford: currentPlayer.gold >= 400 }
         );
       }
-    } else if (!isEnemy) {
-      const troopCost = Math.max(10, Math.floor(currentPlayer.troops * 0.1));
-      actions.push({
-        icon: '➕',
-        label: 'Expand',
-        cost: `${troopCost}⚔️`,
-        action: 'expand',
-        canAfford: currentPlayer.troops >= troopCost
-      });
-    } else {
-      const isAlly = typeof allianceSystem !== 'undefined' && 
-                     allianceSystem.currentAlliances.has(cellData.o);
-      
-      if (isAlly) {
+    } else if (isAdjacent) {
+      if (isNeutral) {
         actions.push({
-          icon: '🤝',
-          label: 'Allied',
-          cost: '',
-          action: 'info',
-          canAfford: false
+          icon: '➕',
+          label: 'Expand',
+          cost: '50💰',
+          action: 'expand',
+          canAfford: currentPlayer.gold >= 50
         });
-      } else {
-        actions.push({
-          icon: '⚔️',
-          label: 'Attack',
-          cost: 'Soon',
-          action: 'info',
-          canAfford: false
-        });
+      } else if (isEnemy) {
+        const isAlly = typeof allianceSystem !== 'undefined' && 
+                       allianceSystem.currentAlliances.has(cellData.o);
+        
+        if (isAlly) {
+          actions.push({
+            icon: '🤝',
+            label: 'Allied',
+            cost: '',
+            action: 'info',
+            canAfford: false
+          });
+        } else {
+          const adjacentTroops = this.calculateAdjacentTroops(cellData.x, cellData.y);
+          const canAttack = adjacentTroops > cellData.tr;
+          console.log('Attack check:', {
+            adjacentTroops,
+            enemyTroops: cellData.tr,
+            canAttack
+          });
+          actions.push({
+            icon: '⚔️',
+            label: 'Attack',
+            cost: `${Math.floor(cellData.tr)}⚔️`,
+            action: 'attack',
+            canAfford: canAttack
+          });
+        }
       }
+    } else {
+      console.log('Cell not adjacent - cannot expand');
     }
     
     actions.push({
@@ -152,7 +177,65 @@ class RadialMenu {
       canAfford: true
     });
     
+    console.log('Actions built:', actions.length);
     this.createRadialItems(actions);
+  }
+
+  checkAdjacent(x, y, playerId) {
+    if (!game.mapData || !game.mapData.cells) {
+      console.log('No map data available');
+      return false;
+    }
+    
+    const directions = [
+      [0, -1],
+      [1, 0],
+      [0, 1],
+      [-1, 0]
+    ];
+    
+    for (let [dx, dy] of directions) {
+      const checkX = x + dx;
+      const checkY = y + dy;
+      
+      const adjacentCell = game.mapData.cells.find(c => c.x === checkX && c.y === checkY);
+      
+      if (adjacentCell) {
+        console.log(`Checking (${checkX},${checkY}):`, {
+          exists: true,
+          owner: adjacentCell.o,
+          isOurs: adjacentCell.o === playerId
+        });
+        
+        if (adjacentCell.o === playerId) {
+          console.log('Found adjacent player cell!');
+          return true;
+        }
+      }
+    }
+    
+    console.log('No adjacent player cells found');
+    return false;
+  }
+
+  calculateAdjacentTroops(x, y) {
+    if (!game.mapData || !game.mapData.cells) return 0;
+    
+    const directions = [[0,-1],[1,0],[0,1],[-1,0]];
+    let totalTroops = 0;
+    
+    for (let [dx, dy] of directions) {
+      const checkX = x + dx;
+      const checkY = y + dy;
+      
+      const adjacentCell = game.mapData.cells.find(c => c.x === checkX && c.y === checkY);
+      if (adjacentCell && adjacentCell.o === network.playerId) {
+        totalTroops += adjacentCell.tr || 0;
+      }
+    }
+    
+    console.log('Total adjacent troops:', totalTroops);
+    return totalTroops;
   }
 
   createRadialItems(actions) {
@@ -198,8 +281,11 @@ class RadialMenu {
     
     const { x, y } = this.selectedCell;
     
+    console.log('Handling action:', action, 'for cell:', x, y);
+    
     switch (action) {
       case 'expand':
+      case 'attack':
         game.expandToCell(x, y);
         break;
         
@@ -238,7 +324,7 @@ class RadialMenu {
     if (!this.selectedCell) return;
     
     const { x, y } = this.selectedCell;
-    const cellData = game.mapData.cells.find(c => c.x === x && c.y === y);
+    const cellData = this.selectedCell;
     
     if (!cellData) return;
     
@@ -259,6 +345,9 @@ class RadialMenu {
     if (cellData.b) {
       message += `\n🏗️ Building: ${buildingNames[cellData.b]}`;
     }
+    
+    const isAdjacent = this.checkAdjacent(x, y, network.playerId);
+    message += `\n🔗 Adjacent: ${isAdjacent ? 'Yes' : 'No'}`;
     
     network.showNotification(message, 'info');
   }

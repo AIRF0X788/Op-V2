@@ -7,6 +7,7 @@ class Game {
     this.currentPhase = 'menu';
     this.mapData = null;
     this.selectedCell = null;
+    this.cellMap = new Map();
   }
 
   async init() {
@@ -87,6 +88,7 @@ class Game {
     this.currentPhase = 'placement';
     this.currentGameState = roomData;
     this.mapData = roomData.mapData;
+    this.buildCellMap();
 
     this.ui.switchScreen('placementScreen');
 
@@ -97,9 +99,20 @@ class Game {
     document.getElementById('playersPlaced').textContent = roomData.playersPlaced?.length || 0;
   }
 
+  buildCellMap() {
+    this.cellMap.clear();
+    if (this.mapData && this.mapData.cells) {
+      this.mapData.cells.forEach(cell => {
+        const key = `${cell.x},${cell.y}`;
+        this.cellMap.set(key, cell);
+      });
+    }
+  }
+
   handleFullState(state) {
     this.currentGameState = state;
     this.mapData = state.mapData;
+    this.buildCellMap();
 
     if (typeof allianceSystem !== 'undefined') {
       allianceSystem.updateFromGameState(state);
@@ -110,6 +123,11 @@ class Game {
     } else if (state.gameState === 'playing') {
       if (this.currentPhase !== 'playing') {
         this.startPlayingPhase();
+      } else {
+        if (this.renderer) {
+          this.renderer.loadMapData(this.mapData);
+          this.renderer.cellCache.clear();
+        }
       }
       this.updateGameState(state);
     }
@@ -145,7 +163,7 @@ class Game {
     }
   }
 
-setupGameEvents() {
+  setupGameEvents() {
     const canvas = document.getElementById('gameCanvas');
 
     canvas.addEventListener('click', (e) => {
@@ -159,15 +177,11 @@ setupGameEvents() {
       const cell = this.renderer.getCellAtPosition(x, y);
 
       if (cell) {
-        const cellData = this.renderer.getCellData(cell.x, cell.y);
-        
-        console.log('Clicked cell:', cellData);
-        console.log('Player ID:', network.playerId);
+        const key = `${cell.x},${cell.y}`;
+        const cellData = this.cellMap.get(key);
         
         if (cellData && cellData.t === 'l') {
           radialMenu.open(e.clientX, e.clientY, cellData, this.currentGameState);
-        } else {
-          console.log('Not land - cell type:', cellData?.t);
         }
       }
     });
@@ -206,21 +220,33 @@ setupGameEvents() {
   handleGridUpdate(data) {
     if (!this.currentGameState) return;
 
+    if (!this.mapData) {
+      this.mapData = { cells: [], width: 150, height: 100 };
+    }
+
     data.changes.forEach(change => {
-      const cellIndex = this.mapData.cells.findIndex(c => c.x === change.x && c.y === change.y);
-      if (cellIndex !== -1) {
-        this.mapData.cells[cellIndex].o = change.owner;
-        this.mapData.cells[cellIndex].tr = change.troops;
-        this.mapData.cells[cellIndex].b = change.building;
-      } else if (change.owner) {
-        this.mapData.cells.push({
+      const key = `${change.x},${change.y}`;
+      let cellData = this.cellMap.get(key);
+      
+      if (cellData) {
+        cellData.o = change.owner;
+        cellData.tr = change.troops;
+        cellData.b = change.building;
+      } else {
+        cellData = {
           x: change.x,
           y: change.y,
           t: 'l',
           o: change.owner,
           tr: change.troops,
           b: change.building
-        });
+        };
+        this.mapData.cells.push(cellData);
+        this.cellMap.set(key, cellData);
+      }
+      
+      if (this.renderer) {
+        this.renderer.cellCache.delete(key);
       }
     });
 

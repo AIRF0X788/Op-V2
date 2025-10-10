@@ -115,15 +115,12 @@ class BotAI {
     if (!neighbor.cell.owner) {
       value = 1.0;
       if (this.gameRoom.mapGrid.isCoastal(neighbor.x, neighbor.y)) value += 0.3;
-      if (this.wouldConnectTerritories(neighbor.x, neighbor.y)) value += 0.5;
     } else if (neighbor.cell.owner !== this.bot.id) {
       const adjacentTroops = this.gameRoom.getAdjacentTroops(neighbor.x, neighbor.y, this.bot.id);
       const canConquer = adjacentTroops > neighbor.cell.troops + 5;
       
       if (canConquer) {
         value = 0.6;
-        const enemyStrength = this.getPlayerStrength(neighbor.cell.owner);
-        if (enemyStrength < 0.3) value += 0.4;
         if (neighbor.cell.building) value += 0.5;
       }
     }
@@ -136,15 +133,6 @@ class BotAI {
       troops: neighbor.cell.troops,
       cell: neighbor.cell
     };
-  }
-
-  wouldConnectTerritories(x, y) {
-    const neighbors = this.gameRoom.mapGrid.getNeighbors(x, y);
-    let myNeighborCount = 0;
-    neighbors.forEach(n => {
-      if (n.cell.owner === this.bot.id) myNeighborCount++;
-    });
-    return myNeighborCount >= 2;
   }
 
   calculateMilitaryStrength() {
@@ -283,7 +271,7 @@ class BotAI {
   async executeExpansionStrategy(situation) {
     const bestOpportunities = situation.opportunities.slice(0, 3);
     for (let opp of bestOpportunities) {
-      if (!opp.owner && this.canExpandTo(opp.x, opp.y)) {
+      if (this.canExpandTo(opp.x, opp.y)) {
         this.gameRoom.expandTerritory(this.bot.id, opp.x, opp.y);
         break;
       }
@@ -328,10 +316,6 @@ class BotAI {
       if (reinforceSpot && this.bot.gold >= 100) {
         actions.push(() => this.gameRoom.reinforceCell(this.bot.id, reinforceSpot.x, reinforceSpot.y, 10));
       }
-    }
-    if (Math.random() < 0.1) {
-      await this.executeDiplomaticStrategy(situation);
-      return;
     }
     if (actions.length > 0) {
       const action = actions[Math.floor(Math.random() * actions.length)];
@@ -402,12 +386,16 @@ class BotAI {
   canExpandTo(x, y) {
     const cell = this.gameRoom.mapGrid.getCell(x, y);
     if (!cell || cell.type !== 'land') return false;
-    const adjacentTroops = this.gameRoom.getAdjacentTroops(x, y, this.bot.id);
-    const cost = this.gameRoom.config.expandCost;
+    
+    const isAdjacent = this.gameRoom.mapGrid.isAdjacentToPlayer(x, y, this.bot.id);
+    if (!isAdjacent) return false;
+    
     if (cell.owner && cell.owner !== this.bot.id) {
-      return adjacentTroops > cell.troops + cost;
+      const adjacentTroops = this.gameRoom.getAdjacentTroops(x, y, this.bot.id);
+      return adjacentTroops > cell.troops;
     }
-    return adjacentTroops >= cost;
+    
+    return this.bot.gold >= this.gameRoom.config.expandCost;
   }
 
   findBestCitySpots(situation) {

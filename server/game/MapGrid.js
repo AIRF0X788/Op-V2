@@ -83,6 +83,114 @@ class MapGrid {
     return neighbors;
   }
 
+  organicExpansion(targetX, targetY, playerId, troopCost) {
+    const cell = this.getCell(targetX, targetY);
+    if (!cell || cell.type !== 'land') return { success: false, reason: 'Invalid position' };
+    if (cell.owner && cell.owner !== playerId) return { success: false, reason: 'Enemy territory' };
+    
+    const playerBorder = this.findClosestBorder(targetX, targetY, playerId);
+    if (!playerBorder) return { success: false, reason: 'Not connected to your territory' };
+    
+    const expansionRadius = Math.floor(Math.sqrt(troopCost / 10));
+    const expandedCells = this.floodFillExpansion(targetX, targetY, playerId, expansionRadius, troopCost);
+    
+    return { 
+      success: true, 
+      expandedCells,
+      troopCost
+    };
+  }
+
+  findClosestBorder(targetX, targetY, playerId) {
+    const playerCells = this.getPlayerCells(playerId);
+    if (playerCells.length === 0) return null;
+    
+    let closest = null;
+    let minDist = Infinity;
+    
+    playerCells.forEach(({ x, y }) => {
+      const dist = Math.abs(x - targetX) + Math.abs(y - targetY);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = { x, y, distance: dist };
+      }
+    });
+    
+    return closest;
+  }
+
+  floodFillExpansion(startX, startY, playerId, maxRadius, troopBudget) {
+    const expanded = [];
+    const visited = new Set();
+    const queue = [{ x: startX, y: startY, dist: 0 }];
+    visited.add(`${startX},${startY}`);
+    
+    let remainingBudget = troopBudget;
+    
+    while (queue.length > 0 && remainingBudget > 0) {
+      const { x, y, dist } = queue.shift();
+      
+      const cell = this.getCell(x, y);
+      if (!cell || cell.type !== 'land') continue;
+      if (dist > maxRadius) continue;
+      
+      if (!cell.owner || cell.owner === playerId) {
+        const cost = 1;
+        
+        if (remainingBudget >= cost) {
+          if (!cell.owner) {
+            cell.owner = playerId;
+            cell.troops = 1;
+            expanded.push({ x, y });
+            remainingBudget -= cost;
+          }
+          
+          const neighbors = this.getNeighbors(x, y, false);
+          neighbors.forEach(n => {
+            const key = `${n.x},${n.y}`;
+            if (!visited.has(key)) {
+              visited.add(key);
+              queue.push({ x: n.x, y: n.y, dist: dist + 1 });
+            }
+          });
+        }
+      }
+    }
+    
+    return expanded;
+  }
+
+  isConnectedToTerritory(targetX, targetY, playerId) {
+    const playerCells = this.getPlayerCells(playerId);
+    if (playerCells.length === 0) return false;
+    
+    const visited = new Set();
+    const queue = [{ x: targetX, y: targetY }];
+    visited.add(`${targetX},${targetY}`);
+    
+    while (queue.length > 0) {
+      const { x, y } = queue.shift();
+      
+      const cell = this.getCell(x, y);
+      if (!cell) continue;
+      
+      if (cell.owner === playerId) return true;
+      
+      if (cell.type === 'land' && !cell.owner) {
+        const neighbors = this.getNeighbors(x, y, false);
+        neighbors.forEach(n => {
+          const key = `${n.x},${n.y}`;
+          if (!visited.has(key)) {
+            visited.add(key);
+            queue.push({ x: n.x, y: n.y });
+          }
+        });
+      }
+    }
+    
+    return false;
+  }
+
   isAdjacentToPlayer(x, y, playerId) {
     const neighbors = this.getNeighbors(x, y);
     return neighbors.some(n => n.cell.owner === playerId);
@@ -115,7 +223,7 @@ class MapGrid {
     return true;
   }
 
-  placePlayerBase(x, y, playerId, radius = 2) {
+  placePlayerBase(x, y, playerId, radius = 3) {
     const placed = [];
     
     for (let dy = -radius; dy <= radius; dy++) {
@@ -125,6 +233,7 @@ class MapGrid {
           const cell = this.getCell(x + dx, y + dy);
           if (cell && cell.type === 'land') {
             cell.owner = playerId;
+            cell.troops = 10; // Troupes de départ
             placed.push({ x: x + dx, y: y + dy });
           }
         }

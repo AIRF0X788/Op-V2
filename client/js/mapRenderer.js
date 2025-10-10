@@ -31,6 +31,8 @@ class MapRenderer {
     this.fps = 60;
     this.frameTime = 1000 / this.fps;
     
+    this.fullGrid = null;
+    
     this.resize();
     window.addEventListener('resize', () => this.resize());
     
@@ -128,13 +130,124 @@ class MapRenderer {
     return null;
   }
 
+  getCellData(x, y) {
+    let cellData = this.mapData?.cells?.find(c => c.x === x && c.y === y);
+    
+    if (!cellData && this.fullGrid) {
+      const gridCell = this.fullGrid[y]?.[x];
+      if (gridCell) {
+        cellData = {
+          x: x,
+          y: y,
+          t: gridCell.type === 'land' ? 'l' : 'w',
+          o: gridCell.owner || null,
+          tr: gridCell.troops || 0,
+          b: gridCell.building || null
+        };
+      }
+    }
+    
+    if (!cellData) {
+      if (this.isEuropeLand(x, y)) {
+        cellData = {
+          x: x,
+          y: y,
+          t: 'l',
+          o: null,
+          tr: 0,
+          b: null
+        };
+      } else {
+        cellData = {
+          x: x,
+          y: y,
+          t: 'w',
+          o: null,
+          tr: 0,
+          b: null
+        };
+      }
+    }
+    
+    return cellData;
+  }
+
+  isEuropeLand(x, y) {
+    const centerX = this.gridWidth / 2;
+    const centerY = this.gridHeight / 2;
+    
+    const dx = (x - centerX) / this.gridWidth;
+    const dy = (y - centerY) / this.gridHeight;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    const noise = Math.sin(x * 0.15) * Math.cos(y * 0.15) * 0.2;
+    const threshold = 0.55 + noise;
+    
+    if (dist > threshold) return false;
+    
+    if (y > this.gridHeight * 0.7 && x > this.gridWidth * 0.35 && x < this.gridWidth * 0.65) {
+      return false;
+    }
+    
+    if (y < this.gridHeight * 0.25 && x < this.gridWidth * 0.4) {
+      const subDist = Math.sqrt(
+        Math.pow((x - this.gridWidth * 0.25) / this.gridWidth, 2) +
+        Math.pow((y - this.gridHeight * 0.15) / this.gridHeight, 2)
+      );
+      if (subDist < 0.15) return false;
+    }
+    
+    return true;
+  }
+
   loadMapData(mapData) {
     this.mapData = mapData;
     this.gridWidth = mapData.width;
     this.gridHeight = mapData.height;
     
+    this.initializeFullGrid();
+    
     this.camera.x = this.gridWidth / 2 - (this.width / (2 * this.baseCellSize * this.zoom));
     this.camera.y = this.gridHeight / 2 - (this.height / (2 * this.baseCellSize * this.zoom));
+  }
+
+  initializeFullGrid() {
+    this.fullGrid = [];
+    for (let y = 0; y < this.gridHeight; y++) {
+      this.fullGrid[y] = [];
+      for (let x = 0; x < this.gridWidth; x++) {
+        const isLand = this.isEuropeLand(x, y);
+        this.fullGrid[y][x] = {
+          type: isLand ? 'land' : 'water',
+          owner: null,
+          troops: 0,
+          building: null
+        };
+      }
+    }
+    
+    if (this.mapData?.cells) {
+      this.mapData.cells.forEach(cell => {
+        if (this.fullGrid[cell.y] && this.fullGrid[cell.y][cell.x]) {
+          this.fullGrid[cell.y][cell.x].type = cell.t === 'l' ? 'land' : 'water';
+          this.fullGrid[cell.y][cell.x].owner = cell.o;
+          this.fullGrid[cell.y][cell.x].troops = cell.tr;
+          this.fullGrid[cell.y][cell.x].building = cell.b;
+        }
+      });
+    }
+  }
+
+  updateGridFromChanges(changes) {
+    if (!this.fullGrid) return;
+    
+    changes.forEach(change => {
+      if (this.fullGrid[change.y] && this.fullGrid[change.y][change.x]) {
+        this.fullGrid[change.y][change.x].owner = change.owner;
+        this.fullGrid[change.y][change.x].troops = change.troops;
+        this.fullGrid[change.y][change.x].building = change.building;
+      }
+    });
   }
 
   render(gameState, now = Date.now()) {
@@ -180,19 +293,13 @@ class MapRenderer {
     const screenX = (x - this.camera.x) * cellSize;
     const screenY = (y - this.camera.y) * cellSize;
     
-    const cellData = this.mapData.cells.find(c => c.x === x && c.y === y);
+    const gridCell = this.fullGrid?.[y]?.[x];
     
-    if (!cellData) {
-      this.ctx.fillStyle = this.colors.water;
-      this.ctx.fillRect(screenX, screenY, cellSize, cellSize);
-      return;
-    }
-
     let color = this.colors.water;
     
-    if (cellData.t === 'l') {
-      if (cellData.o) {
-        const player = players.find(p => p.id === cellData.o);
+    if (gridCell && gridCell.type === 'land') {
+      if (gridCell.owner) {
+        const player = players.find(p => p.id === gridCell.owner);
         color = player ? player.color : this.colors.land;
       } else {
         color = this.colors.land;
@@ -202,31 +309,31 @@ class MapRenderer {
     this.ctx.fillStyle = color;
     this.ctx.fillRect(screenX, screenY, cellSize, cellSize);
 
-    if (cellData.o && cellSize > 4) {
+    if (gridCell?.owner && cellSize > 4) {
       this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
       this.ctx.lineWidth = 1;
       this.ctx.strokeRect(screenX, screenY, cellSize, cellSize);
     }
 
-    if (cellData.tr > 0 && this.zoom > 1.5) {
+    if (gridCell && gridCell.troops > 0 && this.zoom > 1.5) {
       this.ctx.fillStyle = 'white';
       this.ctx.font = `${Math.floor(cellSize * 0.6)}px Arial`;
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
       this.ctx.fillText(
-        Math.floor(cellData.tr),
+        Math.floor(gridCell.troops),
         screenX + cellSize / 2,
         screenY + cellSize / 2
       );
     }
 
-    if (cellData.b && this.zoom > 1.2) {
+    if (gridCell?.building && this.zoom > 1.2) {
       const icons = { city: '🏛️', port: '⚓', outpost: '🏰', barracks: '⚔️' };
       this.ctx.font = `${Math.floor(cellSize * 0.8)}px Arial`;
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
       this.ctx.fillText(
-        icons[cellData.b] || '',
+        icons[gridCell.building] || '',
         screenX + cellSize / 2,
         screenY + cellSize / 2
       );
@@ -291,21 +398,26 @@ class MapRenderer {
     const scaleX = width / this.gridWidth;
     const scaleY = height / this.gridHeight;
 
-    this.mapData.cells.forEach(cell => {
-      if (cell.t === 'l') {
-        const x = cell.x * scaleX;
-        const y = cell.y * scaleY;
+    if (this.fullGrid) {
+      for (let y = 0; y < this.gridHeight; y++) {
+        for (let x = 0; x < this.gridWidth; x++) {
+          const cell = this.fullGrid[y][x];
+          if (cell.type === 'land') {
+            const px = x * scaleX;
+            const py = y * scaleY;
 
-        if (cell.o) {
-          const player = gameState.players.find(p => p.id === cell.o);
-          ctx.fillStyle = player ? player.color : this.colors.land;
-        } else {
-          ctx.fillStyle = this.colors.landDark;
+            if (cell.owner) {
+              const player = gameState.players.find(p => p.id === cell.owner);
+              ctx.fillStyle = player ? player.color : this.colors.landDark;
+            } else {
+              ctx.fillStyle = this.colors.landDark;
+            }
+
+            ctx.fillRect(px, py, Math.max(1, scaleX), Math.max(1, scaleY));
+          }
         }
-
-        ctx.fillRect(x, y, Math.max(1, scaleX), Math.max(1, scaleY));
       }
-    });
+    }
 
     const viewX = this.camera.x * scaleX;
     const viewY = this.camera.y * scaleY;

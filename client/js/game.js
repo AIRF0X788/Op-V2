@@ -145,7 +145,7 @@ class Game {
     }
   }
 
-  setupGameEvents() {
+setupGameEvents() {
     const canvas = document.getElementById('gameCanvas');
 
     canvas.addEventListener('click', (e) => {
@@ -159,14 +159,16 @@ class Game {
       const cell = this.renderer.getCellAtPosition(x, y);
 
       if (cell) {
-        this.requestFullStateUpdate();
+        const cellData = this.renderer.getCellData(cell.x, cell.y);
         
-        setTimeout(() => {
-          const cellData = this.mapData.cells.find(c => c.x === cell.x && c.y === cell.y);
-          if (cellData && cellData.t === 'l') {
-            radialMenu.open(e.clientX, e.clientY, cellData, this.currentGameState);
-          }
-        }, 100);
+        console.log('Clicked cell:', cellData);
+        console.log('Player ID:', network.playerId);
+        
+        if (cellData && cellData.t === 'l') {
+          radialMenu.open(e.clientX, e.clientY, cellData, this.currentGameState);
+        } else {
+          console.log('Not land - cell type:', cellData?.t);
+        }
       }
     });
 

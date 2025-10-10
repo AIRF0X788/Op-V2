@@ -76,8 +76,6 @@ class RadialMenu {
     
     const isOurs = cellData.o === network.playerId;
     const isEnemy = cellData.o && cellData.o !== network.playerId;
-    const isAdjacent = this.isCellAdjacentToPlayer(cellData.x, cellData.y);
-    
     const currentPlayer = gameState.players.find(p => p.id === network.playerId);
     const hasBuilding = cellData.b !== null;
     
@@ -101,7 +99,7 @@ class RadialMenu {
       actions.push({
         icon: '🛡️',
         label: 'Reinforce',
-        cost: '100💰',
+        cost: '10💰/trp',
         action: 'reinforce',
         canAfford: currentPlayer.gold >= 100
       });
@@ -114,36 +112,34 @@ class RadialMenu {
           { icon: '⚔️', label: 'Barracks', cost: '400💰', action: 'buildBarracks', canAfford: currentPlayer.gold >= 400 }
         );
       }
-    } else if (isAdjacent) {
-      const adjacentTroops = this.getAdjacentTroops(cellData.x, cellData.y);
-      if (isEnemy) {
-        const isAlly = typeof allianceSystem !== 'undefined' && 
-                       allianceSystem.currentAlliances.has(cellData.o);
-        
-        if (!isAlly) {
-          actions.push({
-            icon: '⚔️',
-            label: 'Attack',
-            cost: '5⚔️',
-            action: 'attack',
-            canAfford: adjacentTroops >= 5 && (adjacentTroops - 5) > cellData.tr
-          });
-        } else {
-          actions.push({
-            icon: '🤝',
-            label: 'Allied',
-            cost: '',
-            action: 'info',
-            canAfford: false
-          });
-        }
+    } else if (!isEnemy) {
+      const troopCost = Math.max(10, Math.floor(currentPlayer.troops * 0.1));
+      actions.push({
+        icon: '➕',
+        label: 'Expand',
+        cost: `${troopCost}⚔️`,
+        action: 'expand',
+        canAfford: currentPlayer.troops >= troopCost
+      });
+    } else {
+      const isAlly = typeof allianceSystem !== 'undefined' && 
+                     allianceSystem.currentAlliances.has(cellData.o);
+      
+      if (isAlly) {
+        actions.push({
+          icon: '🤝',
+          label: 'Allied',
+          cost: '',
+          action: 'info',
+          canAfford: false
+        });
       } else {
         actions.push({
-          icon: '➕',
-          label: 'Expand',
-          cost: '5⚔️',
-          action: 'expand',
-          canAfford: adjacentTroops >= 5
+          icon: '⚔️',
+          label: 'Attack',
+          cost: 'Soon',
+          action: 'info',
+          canAfford: false
         });
       }
     }
@@ -204,7 +200,6 @@ class RadialMenu {
     
     switch (action) {
       case 'expand':
-      case 'attack':
         game.expandToCell(x, y);
         break;
         
@@ -266,37 +261,6 @@ class RadialMenu {
     }
     
     network.showNotification(message, 'info');
-  }
-
-  isCellAdjacentToPlayer(x, y) {
-    const directions = [
-      [-1,-1],[0,-1],[1,-1],
-      [-1,0],[1,0],
-      [-1,1],[0,1],[1,1]
-    ];
-
-    return directions.some(([dx, dy]) => {
-      const neighbor = game.mapData.cells.find(c => c.x === x + dx && c.y === y + dy);
-      return neighbor && neighbor.o === network.playerId;
-    });
-  }
-
-  getAdjacentTroops(x, y) {
-    const directions = [
-      [-1,-1],[0,-1],[1,-1],
-      [-1,0],[1,0],
-      [-1,1],[0,1],[1,1]
-    ];
-
-    let total = 0;
-    directions.forEach(([dx, dy]) => {
-      const neighbor = game.mapData.cells.find(c => c.x === x + dx && c.y === y + dy);
-      if (neighbor && neighbor.o === network.playerId) {
-        total += neighbor.tr || 0;
-      }
-    });
-
-    return total;
   }
 }
 

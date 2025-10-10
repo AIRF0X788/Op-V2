@@ -25,7 +25,6 @@ class GameRoom {
     this.tradeOffers = new Map();
     this.nextTradeId = 1;
     this.config = {
-      expandCost: 5,
       troopGeneration: 0.1,
       goldGeneration: 1,
       reinforceCostPerTroop: 10,
@@ -37,10 +36,11 @@ class GameRoom {
         barracks: { gold: 0, troops: 5 }
       },
       startingGold: 1000,
-      startingTroops: 50,
+      startingTroops: 100,
       victoryThreshold: 0.8,
       minBots: 3,
-      maxBots: 6
+      maxBots: 6,
+      expansionTroopCostPercent: 0.1 // 10% des troupes totales
     };
   }
 
@@ -155,17 +155,21 @@ class GameRoom {
     const cell = this.mapGrid.getCell(x, y);
     if (!cell || cell.type !== 'land') return { success: false, reason: 'Invalid position' };
     if (cell.owner) return { success: false, reason: 'Position occupied' };
-    if (!this.mapGrid.checkAreaFree(x, y, 5)) return { success: false, reason: 'Too close to another player' };
+    if (!this.mapGrid.checkAreaFree(x, y, 10)) return { success: false, reason: 'Too close to another player' };
     
-    const placedCells = this.mapGrid.placePlayerBase(x, y, playerId, 2);
+    const placedCells = this.mapGrid.placePlayerBase(x, y, playerId, 3);
+    
+    // Distribuer les troupes de départ
+    const troopsPerCell = this.config.startingTroops / placedCells.length;
     placedCells.forEach(pos => {
       const c = this.mapGrid.getCell(pos.x, pos.y);
-      c.troops = this.config.startingTroops / placedCells.length;
+      c.troops = troopsPerCell;
     });
     
     player.hasPlacedBase = true;
     player.baseX = x;
     player.baseY = y;
+    player.troops = this.config.startingTroops;
     this.playersPlaced.add(playerId);
     
     if (this.playersPlaced.size === this.players.size) {
@@ -237,62 +241,93 @@ class GameRoom {
     if (!player) return { success: false, reason: 'Player not found' };
     
     const targetCell = this.mapGrid.getCell(targetX, targetY);
-    if (!targetCell || targetCell.type !== 'land') return { success: false, reason: 'Invalid position' };
-    if (!this.mapGrid.isAdjacentToPlayer(targetX, targetY, playerId)) return { success: false, reason: 'Must be adjacent' };
-    if (targetCell.owner === playerId) return { success: false, reason: 'Already owned' };
-    if (targetCell.owner && this.areAllied(playerId, targetCell.owner)) return { success: false, reason: 'Cannot attack ally' };
+    if (!targetCell || targetCell.type !== 'land') {
+      return { success: false, reason: 'Invalid position - must be land' };
+    }
     
-    const adjacentTroops = this.getAdjacentTroops(targetX, targetY, playerId);
-    const expandCost = this.config.expandCost;
-    if (adjacentTroops < expandCost) return { success: false, reason: 'Not enough adjacent troops' };
+    if (targetCell.owner === playerId) {
+      return { success: false, reason: 'Already your territory' };
+    }
     
     if (targetCell.owner && targetCell.owner !== playerId) {
-      const defenderTroops = targetCell.troops;
-      if (adjacentTroops - expandCost <= defenderTroops) return { success: false, reason: 'Defense too strong' };
-      
-      const survivingTroops = (adjacentTroops - expandCost) - defenderTroops;
-      const defender = this.players.get(targetCell.owner);
-      
-      if (defender) {
-        defender.kills++;
-        this.io.to(this.code).emit('combatEvent', {
-          attacker: player.name,
-          defender: defender.name,
-          x: targetX,
-          y: targetY,
-          result: 'captured'
+      if (this.areAllied(playerId, targetCell.owner)) {
+        return { success: false, reason: 'Cannot attack ally' };
+      }
+      return { success: false, reason: 'Enemy territory - not implemented yet' };
+    }
+    
+    const totalTroops = player.troops;
+    const troopCost = Math.max(10, Math.floor(totalTroops * this.config.expansionTroopCostPercent));
+    
+    if (totalTroops < troopCost) {
+      return { success: false, reason: `Need at least ${troopCost} troops to expand` };
+    }
+    
+    const playerCells = this.mapGrid.getPlayerCells(playerId);
+    if (playerCells.length === 0) {
+      return { success: false, reason: 'No territory found' };
+    }
+    
+    const closestBorder = this.mapGrid.findClosestBorder(targetX, targetY, playerId);
+    if (!closestBorder) {
+      return { success: false, reason: 'Cannot reach this location' };
+    }
+    
+    if (closestBorder.distance > 50) {
+      return { success: false, reason: 'Too far from your territory' };
+    }
+    
+    const result = this.mapGrid.organicExpansion(targetX, targetY, playerId, troopCost);
+    
+    if (!result.success) {
+      return result;
+    }
+    
+    this.distributeTroopCost(playerId, troopCost);
+    
+    result.expandedCells.forEach(({ x, y }) => {
+      const cell = this.mapGrid.getCell(x, y);
+      this.queueChange({
+        x,
+        y,
+        owner: playerId,
+        troops: Math.floor(cell.troops),
+        building: cell.building
+      });
+    });
+    
+    return { 
+      success: true, 
+      message: `Expanded ${result.expandedCells.length} cells! Used ${troopCost} troops.`,
+      expandedCount: result.expandedCells.length 
+    };
+  }
+
+  distributeTroopCost(playerId, totalCost) {
+    const playerCells = this.mapGrid.getPlayerCells(playerId);
+    if (playerCells.length === 0) return;
+    
+    const totalTroops = playerCells.reduce((sum, { cell }) => sum + cell.troops, 0);
+    
+    playerCells.forEach(({ x, y, cell }) => {
+      if (totalTroops > 0) {
+        const proportion = cell.troops / totalTroops;
+        const cost = totalCost * proportion;
+        cell.troops = Math.max(0.1, cell.troops - cost);
+        
+        this.queueChange({
+          x,
+          y,
+          owner: playerId,
+          troops: Math.floor(cell.troops),
+          building: cell.building
         });
       }
-      
-      targetCell.owner = playerId;
-      targetCell.troops = Math.max(1, survivingTroops * 0.7);
-      targetCell.building = null;
-      this.distributeTroopCost(targetX, targetY, playerId, expandCost + defenderTroops * 0.5);
-      player.conquests++;
-      
-      this.queueChange({
-        x: targetX,
-        y: targetY,
-        owner: playerId,
-        troops: Math.floor(targetCell.troops),
-        building: null
-      });
-      
-      return { success: true, conquered: true, message: `Conquered from ${defender?.name}!` };
-    } else {
-      targetCell.owner = playerId;
-      targetCell.troops = expandCost * 0.5;
-      this.distributeTroopCost(targetX, targetY, playerId, expandCost);
-      
-      this.queueChange({
-        x: targetX,
-        y: targetY,
-        owner: playerId,
-        troops: Math.floor(targetCell.troops),
-        building: null
-      });
-      
-      return { success: true, conquered: false };
+    });
+    
+    const player = this.players.get(playerId);
+    if (player) {
+      player.troops = this.mapGrid.calculatePlayerTroops(playerId);
     }
   }
 
@@ -301,13 +336,16 @@ class GameRoom {
     if (!player) return { success: false, reason: 'Player not found' };
     
     const cell = this.mapGrid.getCell(x, y);
-    if (!cell || cell.owner !== playerId) return { success: false, reason: 'Not your territory' };
+    if (!cell || cell.owner !== playerId) {
+      return { success: false, reason: 'Not your territory' };
+    }
     
     const cost = troopCount * this.config.reinforceCostPerTroop;
     if (player.gold < cost) return { success: false, reason: 'Insufficient gold' };
     
     cell.troops += troopCount;
     player.gold -= cost;
+    player.troops += troopCount;
     
     this.queueChange({
       x,
@@ -333,38 +371,22 @@ class GameRoom {
     return totalTroops;
   }
 
-  distributeTroopCost(x, y, playerId, totalCost) {
-    const neighbors = this.mapGrid.getNeighbors(x, y).filter(n => n.cell.owner === playerId && n.cell.troops > 0);
-    if (neighbors.length === 0) return;
-    
-    const totalTroops = neighbors.reduce((sum, n) => sum + n.cell.troops, 0);
-    neighbors.forEach(n => {
-      const proportion = n.cell.troops / totalTroops;
-      const cost = totalCost * proportion;
-      n.cell.troops = Math.max(0, n.cell.troops - cost);
-      
-      this.queueChange({
-        x: n.x,
-        y: n.y,
-        owner: playerId,
-        troops: Math.floor(n.cell.troops),
-        building: n.cell.building
-      });
-    });
-  }
-
   buildBuilding(playerId, x, y, buildingType) {
     const player = this.players.get(playerId);
     if (!player) return { success: false, reason: 'Player not found' };
     
     const cell = this.mapGrid.getCell(x, y);
-    if (!cell || cell.owner !== playerId) return { success: false, reason: 'Not your territory' };
+    if (!cell || cell.owner !== playerId) {
+      return { success: false, reason: 'Not your territory' };
+    }
     if (cell.building) return { success: false, reason: 'Building already exists' };
     
     const cost = this.config.buildingCosts[buildingType];
     if (!cost) return { success: false, reason: 'Invalid building type' };
     if (player.gold < cost) return { success: false, reason: 'Insufficient gold' };
-    if (buildingType === 'port' && !this.mapGrid.isCoastal(x, y)) return { success: false, reason: 'Must be coastal' };
+    if (buildingType === 'port' && !this.mapGrid.isCoastal(x, y)) {
+      return { success: false, reason: 'Must be coastal' };
+    }
     
     cell.building = buildingType;
     player.gold -= cost;

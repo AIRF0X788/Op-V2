@@ -14,7 +14,6 @@
   --accent-green: #2ecc71;
   --accent-red: #e74c3c;
   --accent-yellow: #f39c12;
-  --accent-purple: #9b59b6;
   --border-color: #2a3142;
 }
 
@@ -265,11 +264,22 @@ input:focus {
   gap: 0.5rem;
 }
 
+.bot-badge {
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: bold;
+  background: var(--accent-yellow);
+  color: white;
+}
+
 #gameScreen {
   position: relative;
 }
 
-#gameCanvas {
+#gameCanvas, #placementCanvas {
   width: 100%;
   height: 100%;
   background: #050810;
@@ -323,136 +333,69 @@ input:focus {
   font-weight: 700;
 }
 
-.radial-menu {
-  position: fixed;
-  pointer-events: none;
-  z-index: 1000;
-  width: 300px;
-  height: 300px;
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  opacity: 0;
-  transform: scale(0.3);
-}
-
-.radial-menu.active {
-  pointer-events: all;
-  opacity: 1;
-  transform: scale(1);
-}
-
-.radial-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 70px;
-  height: 70px;
-  background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(74, 158, 255, 0.1) 100%);
-  border: 3px solid var(--accent-blue);
-  border-radius: 50%;
+.expansion-indicator {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 1.8rem;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 2px 8px rgba(255,255,255,0.1);
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-}
-
-.radial-center:hover {
-  transform: translate(-50%, -50%) scale(1.1);
-  box-shadow: 0 12px 40px rgba(74, 158, 255, 0.4), inset 0 2px 8px rgba(255,255,255,0.2);
-}
-
-.radial-item {
-  position: absolute;
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(255,255,255,0.05) 100%);
-  border: 2px solid var(--border-color);
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 4px rgba(255,255,255,0.1);
-  backdrop-filter: blur(8px);
-}
-
-.radial-menu.active .radial-item {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
-
-.radial-menu.active .radial-item:nth-child(2) { transition-delay: 0.05s; }
-.radial-menu.active .radial-item:nth-child(3) { transition-delay: 0.1s; }
-.radial-menu.active .radial-item:nth-child(4) { transition-delay: 0.15s; }
-.radial-menu.active .radial-item:nth-child(5) { transition-delay: 0.2s; }
-.radial-menu.active .radial-item:nth-child(6) { transition-delay: 0.25s; }
-
-.radial-item:hover {
-  background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(74, 158, 255, 0.2) 100%);
-  border-color: var(--accent-blue);
-  transform: translate(-50%, -50%) scale(1.2);
-  box-shadow: 0 10px 30px rgba(74, 158, 255, 0.5), inset 0 2px 8px rgba(255,255,255,0.2);
-  z-index: 10;
-}
-
-.radial-item.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  background: linear-gradient(135deg, #2a2a2a 0%, rgba(255,255,255,0.02) 100%);
-}
-
-.radial-item.disabled:hover {
-  transform: translate(-50%, -50%) scale(1);
-  border-color: #444;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-  background: linear-gradient(135deg, #2a2a2a 0%, rgba(255,255,255,0.02) 100%);
-}
-
-.radial-item-icon {
-  font-size: 2rem;
-  margin-bottom: 0.1rem;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-}
-
-.radial-item-label {
-  font-size: 0.65rem;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(46, 204, 113, 0.2);
+  border-radius: 6px;
+  border: 1px solid var(--accent-green);
+  font-size: 0.85rem;
   font-weight: 600;
-  text-align: center;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-  line-height: 1;
+  color: var(--accent-green);
 }
 
-.radial-item-cost {
-  font-size: 0.6rem;
-  opacity: 0.8;
-  margin-top: 0.1rem;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+.expansion-indicator.hidden {
+  display: none;
 }
 
-.radial-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 999;
-  background: rgba(0,0,0,0.1);
-  backdrop-filter: blur(1px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
+.expansion-icon {
+  animation: spin 1s linear infinite;
 }
 
-.radial-overlay.active {
-  opacity: 1;
-  pointer-events: all;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+#gameCanvas.expanding {
+  cursor: wait !important;
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4);
+  }
+  50% { 
+    box-shadow: 0 0 0 10px rgba(46, 204, 113, 0);
+  }
+}
+
+.game-instructions {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 31, 46, 0.95);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  font-size: 0.85rem;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.game-instructions p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.game-instructions strong {
+  color: var(--text-primary);
 }
 
 .cell-tooltip {
@@ -581,11 +524,6 @@ input:focus {
   background: var(--bg-dark);
 }
 
-#placementCanvas {
-  width: 100%;
-  height: 100%;
-}
-
 .placement-overlay {
   position: absolute;
   top: 0;
@@ -640,10 +578,6 @@ input:focus {
   overflow: hidden;
 }
 
-.game-panel.collapsed .panel-content {
-  display: none;
-}
-
 .panel-header {
   padding: 1rem;
   background: var(--bg-dark);
@@ -659,7 +593,7 @@ input:focus {
   color: var(--accent-blue);
 }
 
-.panel-toggle, .close-btn {
+.close-btn {
   background: transparent;
   border: none;
   color: var(--text-primary);
@@ -669,7 +603,7 @@ input:focus {
   transition: color 0.2s;
 }
 
-.panel-toggle:hover, .close-btn:hover {
+.close-btn:hover {
   color: var(--accent-blue);
 }
 
@@ -691,38 +625,31 @@ input:focus {
   letter-spacing: 1px;
 }
 
-.alliance-player-item {
+.ally-list, .player-list {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.ally-item, .alliance-player-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
   background: var(--bg-dark);
   border-radius: 8px;
-  padding: 0.75rem;
   margin-bottom: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
   transition: all 0.2s;
 }
 
-.alliance-player-item:hover {
+.ally-item:hover, .alliance-player-item:hover {
   background: var(--bg-hover);
-  transform: translateX(-2px);
 }
 
-.player-name {
-  flex: 1;
-  font-weight: 500;
-}
-
-.player-stats {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.85rem;
+.no-allies {
   color: var(--text-secondary);
-}
-
-.player-actions {
-  display: flex;
-  gap: 0.25rem;
-  justify-content: flex-end;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
 }
 
 .btn-small {
@@ -737,259 +664,14 @@ input:focus {
   font-weight: 600;
 }
 
-.btn-small:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-
 .btn-ally {
   background: var(--accent-blue);
   color: white;
 }
 
-.btn-ally:hover {
-  background: #3a8eef;
-}
-
-.btn-trade {
-  background: var(--accent-yellow);
-  color: white;
-}
-
-.btn-trade:hover {
-  background: #e89c0c;
-}
-
 .btn-break {
   background: var(--accent-red);
   color: white;
-}
-
-.btn-break:hover {
-  background: #d73a2c;
-}
-
-.btn-success:hover {
-  background: #27b062;
-}
-
-.btn-danger:hover {
-  background: #d73a2c;
-}
-
-.bot-badge, .ally-badge {
-  padding: 0.15rem 0.35rem;
-  border-radius: 3px;
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: bold;
-}
-
-.bot-badge {
-  background: var(--accent-purple);
-  color: white;
-}
-
-.ally-badge {
-  background: var(--accent-green);
-  color: white;
-}
-
-.alliance-request {
-  background: var(--bg-dark);
-  border-radius: 8px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-left: 3px solid var(--accent-yellow);
-}
-
-.request-info {
-  flex: 1;
-  font-size: 0.9rem;
-}
-
-.request-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.ally-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: var(--bg-dark);
-  border-radius: 6px;
-  margin-bottom: 0.25rem;
-}
-
-.ally-list {
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-.no-allies {
-  color: var(--text-secondary);
-  font-style: italic;
-  text-align: center;
-  padding: 1rem;
-}
-
-#tradePanel {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 400px;
-  z-index: 200;
-}
-
-#tradePanel.hidden {
-  display: none;
-}
-
-.trade-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.trade-section {
-  background: var(--bg-dark);
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.trade-section h4 {
-  margin: 0 0 0.75rem 0;
-  color: var(--accent-yellow);
-  font-size: 0.95rem;
-}
-
-.trade-input {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.trade-input label {
-  flex: 0 0 80px;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.trade-input input {
-  flex: 1;
-  padding: 0.5rem;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-size: 1rem;
-}
-
-.trade-input input:focus {
-  outline: none;
-  border-color: var(--accent-yellow);
-  box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.1);
-}
-
-.trade-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  margin-top: 0.5rem;
-}
-
-.trade-offer-notification {
-  background: rgba(26, 31, 46, 0.98);
-  border: 2px solid var(--accent-yellow);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 0.5rem;
-  animation: slideIn 0.3s ease;
-  max-width: 320px;
-}
-
-.trade-header {
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: var(--accent-yellow);
-  font-size: 0.95rem;
-}
-
-.trade-details {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.combat-animation {
-  position: absolute;
-  font-size: 2rem;
-  animation: combatPulse 1s ease;
-  pointer-events: none;
-  z-index: 1000;
-}
-
-@keyframes combatPulse {
-  0% {
-    transform: scale(0.5) rotate(0deg);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(2) rotate(180deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.5) rotate(360deg);
-    opacity: 0;
-  }
-}
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-dark);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-blue);
-}
-
-.panel-content::-webkit-scrollbar,
-.ally-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.panel-content::-webkit-scrollbar-track,
-.ally-list::-webkit-scrollbar-track {
-  background: var(--bg-dark);
-}
-
-.panel-content::-webkit-scrollbar-thumb,
-.ally-list::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 3px;
-}
-
-.panel-content::-webkit-scrollbar-thumb:hover,
-.ally-list::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-blue);
 }
 
 @media (max-width: 768px) {
@@ -1004,14 +686,9 @@ input:focus {
     gap: 0.75rem;
   }
 
-  .radial-menu {
-    width: 240px;
-    height: 240px;
-  }
-
-  .radial-item {
-    width: 60px;
-    height: 60px;
+  .game-instructions {
+    flex-direction: column;
+    gap: 0.5rem;
   }
   
   .minimap-container {
@@ -1026,10 +703,5 @@ input:focus {
 
   .game-panel {
     width: 280px;
-  }
-
-  #tradePanel {
-    width: 90%;
-    max-width: 350px;
   }
 }

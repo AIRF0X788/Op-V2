@@ -1,7 +1,32 @@
-class UIManager {
-  constructor() {
-    this.currentScreen = 'menuScreen';
-  }
+function updateGameHUD(player, mapData) {
+    if (!player) return;
+
+    document.getElementById('hudPlayerName').textContent = player.name;
+    document.getElementById('hudPlayerColor').style.background = player.color;
+    document.getElementById('hudGold').textContent = Math.floor(player.gold);
+    document.getElementById('hudIncome').textContent = Math.floor(player.income);
+    document.getElementById('hudTroops').textContent = Math.floor(player.troops);
+    
+    const cells = mapData?.cells?.filter(c => c.o === player.id).length || 0;
+    document.getElementById('hudCells').textContent = cells;
+    
+    // Mettre à jour l'indicateur d'expansion
+    const canvas = document.getElementById('gameCanvas');
+    const indicator = document.getElementById('expansionIndicator');
+    
+    if (player.isExpanding) {
+      canvas.classList.add('expanding');
+      if (indicator) indicator.classList.remove('hidden');
+    } else {
+      canvas.classList.remove('expanding');
+      if (indicator) indicator.classList.add('hidden');
+    }
+    }
+  
+  class UIManager {
+    constructor() {
+      this.currentScreen = 'menuScreen';
+    }
 
   init() {
     console.log('🎮 UI Manager initializing...');
@@ -23,9 +48,7 @@ class UIManager {
     }
 
     createBtn.addEventListener('click', () => {
-      console.log('🎯 Create Room clicked');
       const playerName = document.getElementById('playerName').value.trim();
-      console.log('Player name:', playerName);
       
       if (!playerName || playerName.length < 2) {
         network.showNotification('Invalid name (min 2 chars)', 'warning');
@@ -35,12 +58,10 @@ class UIManager {
     });
 
     joinBtn.addEventListener('click', () => {
-      console.log('🎯 Join Room clicked');
       joinForm.classList.toggle('hidden');
     });
 
     confirmJoinBtn.addEventListener('click', () => {
-      console.log('🎯 Confirm Join clicked');
       const playerName = document.getElementById('playerName').value.trim();
       const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
       
@@ -56,8 +77,6 @@ class UIManager {
       
       network.joinRoom(roomCode, playerName);
     });
-
-    console.log('✅ Menu screen setup complete');
   }
 
   setupLobbyScreen() {
@@ -71,41 +90,22 @@ class UIManager {
     }
 
     startBtn.addEventListener('click', () => {
-      console.log('🚀 START GAME CLICKED!');
-      console.log('Current room:', network.currentRoom);
-      console.log('Player ID:', network.playerId);
-      
-      if (!network.currentRoom) {
-        console.error('❌ No current room!');
-        network.showNotification('No room found', 'error');
-        return;
-      }
-      
-      console.log('📤 Sending startGame event...');
       network.startGame();
     });
 
     leaveBtn.addEventListener('click', () => {
-      console.log('🚪 Leave lobby clicked');
       if (confirm('Leave lobby?')) location.reload();
     });
 
     copyBtn.addEventListener('click', () => {
-      console.log('📋 Copy code clicked');
       const code = document.getElementById('displayRoomCode').textContent;
       navigator.clipboard.writeText(code).then(() => {
         network.showNotification('Code copied!', 'success');
-      }).catch(err => {
-        console.error('Copy failed:', err);
       });
     });
-
-    console.log('✅ Lobby screen setup complete');
   }
 
   updateLobby(roomData) {
-    console.log('📊 Updating lobby with data:', roomData);
-    
     document.getElementById('displayRoomCode').textContent = roomData.code;
 
     const playersList = document.getElementById('playersList');
@@ -121,22 +121,18 @@ class UIManager {
         <div class="player-color-dot" style="background: ${player.color}"></div>
         <span>${player.name}</span>
         ${player.id === roomData.hostId ? '<span>👑</span>' : ''}
+        ${player.isBot ? '<span class="bot-badge">BOT</span>' : ''}
       `;
       playersList.appendChild(card);
     });
 
     const startBtn = document.getElementById('startGameBtn');
-    console.log('Player ID:', network.playerId);
-    console.log('Host ID:', roomData.hostId);
-    console.log('Is host?', network.playerId === roomData.hostId);
     
     if (network.playerId === roomData.hostId) {
       startBtn.style.display = 'block';
       startBtn.disabled = roomData.players.length < 1;
-      console.log('✅ Start button visible (you are host)');
     } else {
       startBtn.style.display = 'none';
-      console.log('ℹ️ Start button hidden (not host)');
     }
   }
 
@@ -150,30 +146,15 @@ class UIManager {
     }
 
     centerBtn.addEventListener('click', () => {
-      console.log('🎯 Center on base clicked');
       game.centerOnBase();
     });
 
     leaveBtn.addEventListener('click', () => {
-      console.log('🚪 Leave game clicked');
       if (confirm('Leave game?')) location.reload();
     });
-
-    console.log('✅ Game screen setup complete');
   }
 
-  updateGameHUD(player, mapData) {
-    if (!player) return;
 
-    document.getElementById('hudPlayerName').textContent = player.name;
-    document.getElementById('hudPlayerColor').style.background = player.color;
-    document.getElementById('hudGold').textContent = Math.floor(player.gold);
-    document.getElementById('hudIncome').textContent = Math.floor(player.income);
-    document.getElementById('hudTroops').textContent = Math.floor(player.troops);
-    
-    const cells = mapData?.cells?.filter(c => c.o === player.id).length || 0;
-    document.getElementById('hudCells').textContent = cells;
-  }
 
   showCellTooltip(mouseX, mouseY, x, y, mapData, gameState) {
     const tooltip = document.getElementById('cellTooltip');
@@ -195,27 +176,16 @@ class UIManager {
       }
     }
 
-    const buildingNames = {
-      city: '🏛️ City',
-      port: '⚓ Port',
-      outpost: '🏰 Outpost',
-      barracks: '⚔️ Barracks'
-    };
-
     tooltip.innerHTML = `
       <div class="owner" style="color: ${ownerColor}">${ownerName}</div>
       <div class="stat">
-        <span>Troops:</span>
-        <span class="stat-value">${Math.floor(cellData.tr || 0)}</span>
+        <span>Position:</span>
+        <span class="stat-value">(${x}, ${y})</span>
       </div>
-      ${cellData.b ? `<div class="stat">
-        <span>Building:</span>
-        <span class="stat-value">${buildingNames[cellData.b]}</span>
-      </div>` : ''}
     `;
 
     const tooltipWidth = 160;
-    const tooltipHeight = 80;
+    const tooltipHeight = 60;
     let left = mouseX + 15;
     let top = mouseY + 15;
 
@@ -236,7 +206,12 @@ class UIManager {
     const minutes = Math.floor(duration / 60);
     const seconds = duration % 60;
 
-    alert(`Game Over!\nWinner: ${data.winner.name}\nDuration: ${minutes}m ${seconds}s`);
+    let statsText = '\n\nFinal Stats:\n';
+    data.stats.forEach((stat, i) => {
+      statsText += `${i + 1}. ${stat.name}: ${stat.cells} cells, ${stat.troops} troops\n`;
+    });
+
+    alert(`Game Over!\n\nWinner: ${data.winner.name}\nDuration: ${minutes}m ${seconds}s${statsText}`);
     
     setTimeout(() => location.reload(), 2000);
   }
@@ -252,9 +227,6 @@ class UIManager {
     if (screen) {
       screen.classList.add('active');
       this.currentScreen = screenId;
-      console.log('✅ Screen switched to:', screenId);
-    } else {
-      console.error('❌ Screen not found:', screenId);
     }
   }
 }

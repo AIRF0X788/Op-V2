@@ -8,6 +8,7 @@ class Game {
     this.mapData = null;
     this.selectedCell = null;
     this.cellMap = new Map();
+    this.isExpanding = false;
   }
 
   async init() {
@@ -81,6 +82,10 @@ class Game {
 
     network.on('gameOver', (data) => {
       this.onGameOver(data);
+    });
+
+    network.on('combatEvent', (data) => {
+      network.showNotification(`⚔️ ${data.attacker} attacks ${data.defender}!`, 'warning');
     });
   }
 
@@ -157,64 +162,67 @@ class Game {
     this.startGameLoop();
   }
 
-  requestFullStateUpdate() {
-    if (network.currentRoom) {
-      network.socket.emit('requestFullState', network.currentRoom);
-    }
-  }
-
   setupGameEvents() {
     const canvas = document.getElementById('gameCanvas');
 
+    // Clic gauche pour activer/désactiver l'expansion
     canvas.addEventListener('click', (e) => {
       if (this.currentPhase !== 'playing') return;
-      if (radialMenu.isOpen) return;
 
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      const cell = this.renderer.getCellAtPosition(x, y);
-
-      if (cell) {
-        const key = `${cell.x},${cell.y}`;
-        const cellData = this.cellMap.get(key);
-        
-        if (cellData && cellData.t === 'l') {
-          radialMenu.open(e.clientX, e.clientY, cellData, this.currentGameState);
-        }
-      }
+      // Toggle expansion
+      this.toggleExpansion();
     });
 
-    canvas.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      if (radialMenu.isOpen) {
-        radialMenu.close();
+    // Clic droit pour déplacer la caméra
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 2) {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        e.preventDefault();
       }
     });
 
     canvas.addEventListener('mousemove', (e) => {
-      if (this.currentPhase !== 'playing' || radialMenu.isOpen) {
-        this.ui.hideCellTooltip();
-        return;
-      }
-
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      const cell = this.renderer.getCellAtPosition(x, y);
-
-      if (cell) {
-        this.ui.showCellTooltip(e.clientX, e.clientY, cell.x, cell.y, this.mapData, this.currentGameState);
+      if (isDragging) {
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        
+        this.renderer.camera.x -= dx / (this.renderer.baseCellSize * this.renderer.zoom);
+        this.renderer.camera.y -= dy / (this.renderer.baseCellSize * this.renderer.zoom);
+        
+        lastX = e.clientX;
+        lastY = e.clientY;
       } else {
-        this.ui.hideCellTooltip();
+        // Afficher le tooltip
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const cell = this.renderer.getCellAtPosition(x, y);
+
+        if (cell) {
+          this.ui.showCellTooltip(e.clientX, e.clientY, cell.x, cell.y, this.mapData, this.currentGameState);
+        } else {
+          this.ui.hideCellTooltip();
+        }
       }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDragging = false;
     });
 
     canvas.addEventListener('mouseleave', () => {
+      isDragging = false;
       this.ui.hideCellTooltip();
     });
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
   handleGridUpdate(data) {
@@ -230,16 +238,12 @@ class Game {
       
       if (cellData) {
         cellData.o = change.owner;
-        cellData.tr = change.troops;
-        cellData.b = change.building;
       } else {
         cellData = {
           x: change.x,
           y: change.y,
           t: 'l',
-          o: change.owner,
-          tr: change.troops,
-          b: change.building
+          o: change.owner
         };
         this.mapData.cells.push(cellData);
         this.cellMap.set(key, cellData);
@@ -262,15 +266,6 @@ class Game {
         this.ui.updateGameHUD(currentPlayer, this.mapData);
       }
     }
-  }
-
-  reinforceCell(x, y, troops) {
-    network.socket.emit('reinforceCell', {
-      roomCode: network.currentRoom,
-      x,
-      y,
-      troops
-    });
   }
 
   updateGameState(state) {
@@ -308,21 +303,36 @@ class Game {
     }, 2000);
   }
 
+  // Expansion continue vers une cellule
   expandToCell(x, y) {
+    if (this.isExpanding) return;
+    
+    const key = `${x},${y}`;
+    const cellData = this.cellMap.get(key);
+    
+    if (!cellData || cellData.t !== 'l') {
+      network.showNotification('Cannot expand to water', 'error');
+      return;
+    }
+
+    // Si c'est déjà notre territoire, ne rien faire
+    if (cellData.o === network.playerId) {
+      return;
+    }
+
+    this.isExpanding = true;
+
+    // Envoyer la commande d'expansion
     network.socket.emit('expandTerritory', {
       roomCode: network.currentRoom,
       x,
       y
     });
-  }
 
-  buildBuilding(x, y, buildingType) {
-    network.socket.emit('buildBuilding', {
-      roomCode: network.currentRoom,
-      x,
-      y,
-      buildingType
-    });
+    // Débloquer après un court délai
+    setTimeout(() => {
+      this.isExpanding = false;
+    }, 100);
   }
 
   centerOnBase() {

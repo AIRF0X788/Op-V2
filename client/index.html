@@ -10,7 +10,7 @@
   <div id="menuScreen" class="screen active">
     <div class="menu-container">
       <h1 class="game-title">⚔️ WorldConquest</h1>
-      <p class="game-subtitle">Tactical Territory Conquest</p>
+      <p class="game-subtitle">Continuous Territory Conquest</p>
       
       <div class="menu-form">
         <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
@@ -29,10 +29,10 @@
       <div class="info-section">
         <h3>📖 How to Play</h3>
         <ul>
-          <li>🎯 Click to place your capital</li>
-          <li>⚔️ Click adjacent cells to expand</li>
-          <li>🏗️ Build cities, ports, outposts</li>
-          <li>💰 Manage economy and military</li>
+          <li>🎯 Click to place your starting territory</li>
+          <li>👆 Left-click adjacent land to expand</li>
+          <li>⚔️ More troops = faster expansion</li>
+          <li>🤝 Form alliances with other players</li>
           <li>👑 Conquer 80% of the map to win!</li>
         </ul>
       </div>
@@ -64,8 +64,8 @@
   <div id="placementScreen" class="screen">
     <div class="placement-overlay">
       <div class="placement-info">
-        <h2>🎯 Place Your Capital</h2>
-        <p>Click on a green cell to place your starting position</p>
+        <h2>🎯 Place Your Starting Territory</h2>
+        <p>Click on a green area to place your starting position</p>
         <p class="placement-warning">⚠️ Choose strategically - you cannot change this!</p>
         <div class="placement-stats">
           <p>Players Ready: <strong><span id="playersPlaced">0</span> / <span id="totalPlayers">0</span></strong></p>
@@ -87,12 +87,18 @@
         <span class="resource">⚔️ <strong id="hudTroops">0</strong></span>
         <span class="resource">🏠 <strong id="hudCells">0</strong></span>
       </div>
+      <div class="expansion-indicator hidden" id="expansionIndicator">
+        <span class="expansion-icon">🔄</span>
+        <span>EXPANDING...</span>
+      </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
-    <div id="radialMenu" class="radial-menu hidden">
-      <div class="radial-center" id="radialCenter">📍</div>
+    <div class="game-instructions">
+      <p>👆 <strong>Left-Click</strong> to start/stop expansion</p>
+      <p>🖱️ <strong>Right-Click + Drag</strong> to move camera</p>
+      <p>🔍 <strong>Mouse Wheel</strong> to zoom</p>
     </div>
 
     <div class="minimap-container">
@@ -101,7 +107,25 @@
 
     <div class="control-buttons">
       <div class="control-btn" id="centerBaseBtn" title="Center on base">🎯</div>
+      <div class="control-btn" id="allianceBtn" title="Alliances">🤝</div>
       <div class="control-btn" id="leaveGameBtn" title="Leave game">🚪</div>
+    </div>
+
+    <div id="alliancePanel" class="game-panel hidden">
+      <div class="panel-header">
+        <h3>🤝 Alliances</h3>
+        <button class="close-btn" id="closeAlliancePanel">✕</button>
+      </div>
+      <div class="panel-content">
+        <div class="alliance-section">
+          <h4>Current Allies</h4>
+          <div id="currentAllies" class="ally-list"></div>
+        </div>
+        <div class="alliance-section">
+          <h4>Players</h4>
+          <div id="playerListAlliance" class="player-list"></div>
+        </div>
+      </div>
     </div>
 
     <div id="cellTooltip" class="cell-tooltip hidden"></div>
@@ -113,7 +137,6 @@
   <script src="js/network.js"></script>
   <script src="js/mapRenderer.js"></script>
   <script src="js/placement.js"></script>
-  <script src="js/radialMenu.js"></script>
   <script src="js/allianceSystem.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/game.js"></script>

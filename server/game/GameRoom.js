@@ -12,7 +12,7 @@ class GameRoom {
     this.bots = new Map();
     this.botAIs = new Map();
     this.gameState = 'lobby';
-    this.tickRate = 100;
+    this.tickRate = 50;
     this.gameLoop = null;
     this.startTime = null;
     this.tickCount = 0;
@@ -21,27 +21,18 @@ class GameRoom {
     this.playersPlaced = new Set();
     this.previousGridState = null;
     this.alliances = new Map();
-    this.allianceRequests = new Map();
-    this.tradeOffers = new Map();
-    this.nextTradeId = 1;
+    this.expansionQueues = new Map();
     this.config = {
-      troopGeneration: 0.1,
-      goldGeneration: 1,
-      reinforceCostPerTroop: 10,
-      expandCost: 50,
-      buildingCosts: { city: 500, port: 300, outpost: 200, barracks: 400 },
-      buildingBonuses: {
-        city: { gold: 5, troops: 2 },
-        port: { gold: 3, troops: 1 },
-        outpost: { gold: 1, troops: 3 },
-        barracks: { gold: 0, troops: 5 }
-      },
+      troopGeneration: 0.05,
+      goldGeneration: 0.02,
       startingGold: 1000,
       startingTroops: 100,
-      baseRadius: 5,
+      baseRadius: 6,
       victoryThreshold: 0.8,
       minBots: 3,
-      maxBots: 6
+      maxBots: 6,
+      expansionRate: 0.5,
+      troopCostPerCell: 0.5
     };
   }
 
@@ -51,17 +42,18 @@ class GameRoom {
     player.baseX = null;
     player.baseY = null;
     player.gold = this.config.startingGold;
+    player.troops = this.config.startingTroops;
+    player.isExpanding = false;
     this.players.set(socketId, player);
     this.alliances.set(socketId, new Set());
+    this.expansionQueues.set(socketId, { active: false, cells: [] });
     return player;
   }
 
   addBot(difficulty = 'medium') {
     const botNames = [
       'Napoleon', 'Caesar', 'Alexander', 'Genghis', 'Cleopatra',
-      'Charlemagne', 'Hannibal', 'Sun Tzu', 'Bismarck', 'Churchill',
-      'Catherine', 'Augustus', 'Saladin', 'Richard', 'Frederick',
-      'Victoria', 'Peter', 'Louis XIV', 'Ivan', 'Suleiman'
+      'Charlemagne', 'Hannibal', 'Sun Tzu', 'Bismarck', 'Churchill'
     ];
     const availableNames = botNames.filter(name => 
       !Array.from(this.bots.values()).some(bot => bot.name === name)
@@ -74,10 +66,13 @@ class GameRoom {
     bot.hasPlacedBase = false;
     bot.baseX = null;
     bot.baseY = null;
+    bot.troops = this.config.startingTroops;
+    bot.isExpanding = false;
     
     this.bots.set(botId, bot);
     this.players.set(botId, bot);
     this.alliances.set(botId, new Set());
+    this.expansionQueues.set(botId, { active: false, cells: [] });
     
     const botAI = new BotAI(bot, this, difficulty);
     this.botAIs.set(botId, botAI);
@@ -92,11 +87,10 @@ class GameRoom {
       playerCells.forEach(({ x, y }) => {
         const cell = this.mapGrid.getCell(x, y);
         cell.owner = null;
-        cell.troops = 0;
-        cell.building = null;
       });
       this.alliances.delete(socketId);
       this.alliances.forEach(allies => allies.delete(socketId));
+      this.expansionQueues.delete(socketId);
       this.players.delete(socketId);
       this.playersPlaced.delete(socketId);
       if (this.bots.has(socketId)) {
@@ -160,14 +154,6 @@ class GameRoom {
     
     const placedCells = this.mapGrid.placePlayerBase(x, y, playerId, this.config.baseRadius);
     
-    console.log(`Player ${player.name} placed ${placedCells.length} cells`);
-    
-    const troopsPerCell = this.config.startingTroops / placedCells.length;
-    placedCells.forEach(pos => {
-      const c = this.mapGrid.getCell(pos.x, pos.y);
-      c.troops = troopsPerCell;
-    });
-    
     player.hasPlacedBase = true;
     player.baseX = x;
     player.baseY = y;
@@ -187,50 +173,150 @@ class GameRoom {
     this.gameLoop = setInterval(() => this.tick(), this.tickRate);
     this.io.to(this.code).emit('phaseChanged', { phase: 'playing' });
     
-    console.log('Game started - sending full state to all players');
+    console.log('Game started - sending full state');
     this.io.to(this.code).emit('fullState', this.getState());
   }
 
   tick() {
     this.tickCount++;
-    if (this.tickCount % 10 === 0) this.botAIs.forEach(botAI => botAI.think());
-    if (this.tickCount % 10 === 0) this.generateResources();
-    if (this.tickCount % 50 === 0) this.checkVictory();
-    if (this.tickCount % 100 === 0) this.cleanupOldAllianceRequests();
+    
+    if (this.tickCount % 100 === 0) {
+      this.botAIs.forEach(botAI => botAI.think());
+    }
+    
+    if (this.tickCount % 20 === 0) {
+      this.generateResources();
+    }
+    
+    this.processExpansions();
+    
+    if (this.tickCount % 200 === 0) {
+      this.checkVictory();
+    }
+    
     this.broadcastChanges();
   }
 
   generateResources() {
     this.players.forEach(player => {
       const cells = this.mapGrid.getPlayerCells(player.id);
-      let goldPerSecond = 0;
-      let troopsPerSecond = 0;
+      const cellCount = cells.length;
       
-      cells.forEach(({ cell }) => {
-        goldPerSecond += this.config.goldGeneration;
-        troopsPerSecond += this.config.troopGeneration;
-        if (cell.building) {
-          const bonus = this.config.buildingBonuses[cell.building];
-          if (bonus) {
-            goldPerSecond += bonus.gold;
-            troopsPerSecond += bonus.troops;
+      const goldPerTick = cellCount * this.config.goldGeneration;
+      const troopsPerTick = cellCount * this.config.troopGeneration;
+      
+      player.gold += goldPerTick;
+      player.troops += troopsPerTick;
+      player.income = Math.floor(goldPerTick * 50);
+    });
+  }
+
+  startExpansion(playerId) {
+    const player = this.players.get(playerId);
+    if (!player) return { success: false, reason: 'Player not found' };
+    
+    const queue = this.expansionQueues.get(playerId);
+    if (queue.active) {
+      queue.active = false;
+      player.isExpanding = false;
+      return { success: true, message: 'Expansion stopped' };
+    }
+    
+    if (player.troops < 1) {
+      return { success: false, reason: 'Not enough troops' };
+    }
+    
+    queue.active = true;
+    player.isExpanding = true;
+    
+    return { success: true, message: 'Expansion started!' };
+  }
+
+  processExpansions() {
+    this.expansionQueues.forEach((queue, playerId) => {
+      if (!queue.active) return;
+      
+      const player = this.players.get(playerId);
+      if (!player || player.troops < this.config.troopCostPerCell) {
+        queue.active = false;
+        if (player) player.isExpanding = false;
+        return;
+      }
+      
+      const borderCells = this.mapGrid.getPlayerBorderCells(playerId);
+      if (borderCells.length === 0) {
+        queue.active = false;
+        player.isExpanding = false;
+        return;
+      }
+      
+      const allies = Array.from(this.alliances.get(playerId) || []);
+      const availableCells = [];
+      const checked = new Set();
+      
+      borderCells.forEach(({ x, y }) => {
+        const neighbors = this.mapGrid.getNeighbors(x, y, true);
+        neighbors.forEach(n => {
+          const key = `${n.x},${n.y}`;
+          if (checked.has(key)) return;
+          if (n.cell.type !== 'land') return;
+          if (n.cell.owner === playerId) return;
+          if (n.cell.owner && allies.includes(n.cell.owner)) return;
+          
+          checked.add(key);
+          
+          let priority = 0;
+          if (!n.cell.owner) {
+            priority = 10;
+          } else {
+            priority = 5;
+          }
+          
+          availableCells.push({ 
+            x: n.x, 
+            y: n.y, 
+            cell: n.cell,
+            priority 
+          });
+        });
+      });
+      
+      if (availableCells.length === 0) {
+        queue.active = false;
+        player.isExpanding = false;
+        return;
+      }
+      
+      availableCells.sort((a, b) => b.priority - a.priority);
+      const topCells = availableCells.slice(0, Math.min(5, availableCells.length));
+      const target = topCells[Math.floor(Math.random() * topCells.length)];
+      
+      const cost = target.cell.owner ? this.config.troopCostPerCell * 2 : this.config.troopCostPerCell;
+      
+      if (player.troops >= cost) {
+        const previousOwner = target.cell.owner;
+        target.cell.owner = playerId;
+        target.cell.lastUpdate = Date.now();
+        player.troops -= cost;
+        
+        if (previousOwner) {
+          const enemy = this.players.get(previousOwner);
+          if (enemy) {
+            this.io.to(this.code).emit('combatEvent', {
+              attacker: player.name,
+              defender: enemy.name,
+              x: target.x,
+              y: target.y
+            });
           }
         }
-      });
-      
-      const allyCount = this.alliances.get(player.id)?.size || 0;
-      const allianceBonus = 1 + (allyCount * 0.1);
-      goldPerSecond *= allianceBonus;
-      
-      player.gold += goldPerSecond;
-      player.income = goldPerSecond;
-      
-      const troopsPerCell = troopsPerSecond / cells.length;
-      cells.forEach(({ cell }) => {
-        cell.troops += troopsPerCell;
-      });
-      
-      player.troops = this.mapGrid.calculatePlayerTroops(player.id);
+        
+        this.queueChange({
+          x: target.x,
+          y: target.y,
+          owner: playerId
+        });
+      }
     });
   }
 
@@ -241,210 +327,16 @@ class GameRoom {
     });
   }
 
-  expandTerritory(playerId, targetX, targetY) {
-    const player = this.players.get(playerId);
-    if (!player) return { success: false, reason: 'Player not found' };
-    
-    const targetCell = this.mapGrid.getCell(targetX, targetY);
-    if (!targetCell) {
-      return { success: false, reason: 'Invalid position' };
-    }
-    
-    if (targetCell.type !== 'land') {
-      return { success: false, reason: 'Not land - must be a land cell' };
-    }
-    
-    if (targetCell.owner === playerId) {
-      return { success: false, reason: 'Already your territory' };
-    }
-    
-    if (!this.mapGrid.isAdjacentToPlayer(targetX, targetY, playerId)) {
-      return { success: false, reason: 'Not adjacent to your territory' };
-    }
-    
-    if (targetCell.owner && targetCell.owner !== playerId) {
-      if (this.areAllied(playerId, targetCell.owner)) {
-        return { success: false, reason: 'Cannot attack ally' };
-      }
-      
-      const adjacentTroops = this.getAdjacentTroops(targetX, targetY, playerId);
-      if (adjacentTroops <= targetCell.troops) {
-        return { success: false, reason: `Need more troops (have ${Math.floor(adjacentTroops)}, need ${Math.floor(targetCell.troops + 1)})` };
-      }
-      
-      const attackerLosses = targetCell.troops * 0.5;
-      this.distributeTroopLoss(playerId, targetX, targetY, attackerLosses);
-      
-      const previousOwner = targetCell.owner;
-      targetCell.owner = playerId;
-      targetCell.troops = adjacentTroops - targetCell.troops - attackerLosses;
-      targetCell.building = null;
-      
-      const defenderPlayer = this.players.get(previousOwner);
-      if (defenderPlayer) {
-        const remainingCells = this.mapGrid.getPlayerCells(previousOwner).length;
-        if (remainingCells === 0) {
-          player.kills++;
-        }
-      }
-      
-      player.conquests++;
-      
-      this.io.to(this.code).emit('combatEvent', {
-        x: targetX,
-        y: targetY,
-        attacker: player.name,
-        defender: defenderPlayer?.name || 'Unknown'
-      });
-    } else {
-      if (player.gold < this.config.expandCost) {
-        return { success: false, reason: `Need ${this.config.expandCost} gold` };
-      }
-      
-      player.gold -= this.config.expandCost;
-      targetCell.owner = playerId;
-      targetCell.troops = 10;
-    }
-    
-    this.queueChange({
-      x: targetX,
-      y: targetY,
-      owner: targetCell.owner,
-      troops: Math.floor(targetCell.troops),
-      building: targetCell.building
-    });
-    
-    player.troops = this.mapGrid.calculatePlayerTroops(playerId);
-    
-    return { success: true, message: 'Territory expanded!' };
-  }
-
-  getAdjacentTroops(x, y, playerId) {
-    const neighbors = this.mapGrid.getNeighbors(x, y, false);
-    let totalTroops = 0;
-    neighbors.forEach(n => {
-      if (n.cell.owner === playerId) {
-        totalTroops += n.cell.troops;
-      } else if (n.cell.owner && this.areAllied(playerId, n.cell.owner)) {
-        totalTroops += n.cell.troops * 0.5;
-      }
-    });
-    return totalTroops;
-  }
-
-  distributeTroopLoss(playerId, targetX, targetY, totalLoss) {
-    const neighbors = this.mapGrid.getNeighbors(targetX, targetY, false);
-    const playerNeighbors = neighbors.filter(n => n.cell.owner === playerId);
-    
-    if (playerNeighbors.length === 0) return;
-    
-    const totalTroops = playerNeighbors.reduce((sum, n) => sum + n.cell.troops, 0);
-    
-    playerNeighbors.forEach(n => {
-      if (totalTroops > 0) {
-        const proportion = n.cell.troops / totalTroops;
-        const loss = totalLoss * proportion;
-        n.cell.troops = Math.max(0.5, n.cell.troops - loss);
-        
-        this.queueChange({
-          x: n.x,
-          y: n.y,
-          owner: n.cell.owner,
-          troops: Math.floor(n.cell.troops),
-          building: n.cell.building
-        });
-      }
-    });
-  }
-
-  reinforceCell(playerId, x, y, troopCount) {
-    const player = this.players.get(playerId);
-    if (!player) return { success: false, reason: 'Player not found' };
-    
-    const cell = this.mapGrid.getCell(x, y);
-    if (!cell || cell.owner !== playerId) {
-      return { success: false, reason: 'Not your territory' };
-    }
-    
-    const cost = troopCount * this.config.reinforceCostPerTroop;
-    if (player.gold < cost) return { success: false, reason: 'Insufficient gold' };
-    
-    cell.troops += troopCount;
-    player.gold -= cost;
-    player.troops += troopCount;
-    
-    this.queueChange({
-      x,
-      y,
-      owner: playerId,
-      troops: Math.floor(cell.troops),
-      building: cell.building
-    });
-    
-    return { success: true, message: `+${troopCount} troops deployed` };
-  }
-
-  buildBuilding(playerId, x, y, buildingType) {
-    const player = this.players.get(playerId);
-    if (!player) return { success: false, reason: 'Player not found' };
-    
-    const cell = this.mapGrid.getCell(x, y);
-    if (!cell || cell.owner !== playerId) {
-      return { success: false, reason: 'Not your territory' };
-    }
-    if (cell.building) return { success: false, reason: 'Building already exists' };
-    
-    const cost = this.config.buildingCosts[buildingType];
-    if (!cost) return { success: false, reason: 'Invalid building type' };
-    if (player.gold < cost) return { success: false, reason: 'Insufficient gold' };
-    if (buildingType === 'port' && !this.mapGrid.isCoastal(x, y)) {
-      return { success: false, reason: 'Must be coastal' };
-    }
-    
-    cell.building = buildingType;
-    player.gold -= cost;
-    
-    this.queueChange({
-      x,
-      y,
-      owner: playerId,
-      troops: Math.floor(cell.troops),
-      building: buildingType
-    });
-    
-    return { success: true, message: `${buildingType} built!` };
+  areAllied(player1Id, player2Id) {
+    return this.alliances.get(player1Id)?.has(player2Id) || false;
   }
 
   proposeAlliance(fromId, toId) {
     if (fromId === toId) return { success: false, reason: 'Cannot ally with yourself' };
     if (this.areAllied(fromId, toId)) return { success: false, reason: 'Already allied' };
     
-    if (!this.allianceRequests.has(fromId)) this.allianceRequests.set(fromId, new Map());
-    this.allianceRequests.get(fromId).set(toId, Date.now());
-    
-    if (this.allianceRequests.has(toId) && this.allianceRequests.get(toId).has(fromId)) {
-      this.createAlliance(fromId, toId);
-      return { success: true, message: 'Alliance formed!' };
-    }
-    
-    const fromPlayer = this.players.get(fromId);
-    const toPlayer = this.players.get(toId);
-    
-    if (toPlayer && !toPlayer.isBot) {
-      this.io.to(toId).emit('allianceProposal', {
-        from: fromPlayer.name,
-        fromId: fromId
-      });
-    }
-    
-    if (toPlayer && toPlayer.isBot) {
-      const botAI = this.botAIs.get(toId);
-      if (botAI && Math.random() < botAI.params.allianceProbability) {
-        setTimeout(() => this.proposeAlliance(toId, fromId), 2000);
-      }
-    }
-    
-    return { success: true, message: 'Alliance proposed' };
+    this.createAlliance(fromId, toId);
+    return { success: true, message: 'Alliance formed!' };
   }
 
   createAlliance(player1Id, player2Id) {
@@ -461,9 +353,6 @@ class GameRoom {
         players: [player1.name, player2.name]
       });
     }
-    
-    if (this.allianceRequests.has(player1Id)) this.allianceRequests.get(player1Id).delete(player2Id);
-    if (this.allianceRequests.has(player2Id)) this.allianceRequests.get(player2Id).delete(player1Id);
   }
 
   breakAlliance(player1Id, player2Id) {
@@ -484,80 +373,6 @@ class GameRoom {
     }
     
     return { success: true, message: 'Alliance broken' };
-  }
-
-  areAllied(player1Id, player2Id) {
-    return this.alliances.get(player1Id)?.has(player2Id) || false;
-  }
-
-  createTradeOffer(fromId, toId, offer) {
-    const tradeId = this.nextTradeId++;
-    const trade = {
-      id: tradeId,
-      from: fromId,
-      to: toId,
-      offerGold: offer.gold || 0,
-      requestGold: offer.requestGold || 0,
-      timestamp: Date.now()
-    };
-    this.tradeOffers.set(tradeId, trade);
-    
-    const fromPlayer = this.players.get(fromId);
-    const toPlayer = this.players.get(toId);
-    
-    if (toPlayer && !toPlayer.isBot) {
-      this.io.to(toId).emit('tradeOffer', { ...trade, fromName: fromPlayer.name });
-    }
-    
-    if (toPlayer && toPlayer.isBot) {
-      setTimeout(() => {
-        const accept = Math.random() < 0.5;
-        if (accept) this.acceptTrade(tradeId, toId);
-        else this.rejectTrade(tradeId, toId);
-      }, 3000);
-    }
-    
-    return { success: true, tradeId };
-  }
-
-  acceptTrade(tradeId, acceptingPlayerId) {
-    const trade = this.tradeOffers.get(tradeId);
-    if (!trade || trade.to !== acceptingPlayerId) return { success: false, reason: 'Invalid trade' };
-    
-    const fromPlayer = this.players.get(trade.from);
-    const toPlayer = this.players.get(trade.to);
-    
-    if (fromPlayer.gold < trade.offerGold) return { success: false, reason: 'Offerer insufficient gold' };
-    if (toPlayer.gold < trade.requestGold) return { success: false, reason: 'Your insufficient gold' };
-    
-    fromPlayer.gold -= trade.offerGold;
-    fromPlayer.gold += trade.requestGold;
-    toPlayer.gold += trade.offerGold;
-    toPlayer.gold -= trade.requestGold;
-    
-    this.tradeOffers.delete(tradeId);
-    this.io.to(this.code).emit('tradeCompleted', {
-      between: [fromPlayer.name, toPlayer.name]
-    });
-    
-    return { success: true, message: 'Trade completed' };
-  }
-
-  rejectTrade(tradeId, rejectingPlayerId) {
-    const trade = this.tradeOffers.get(tradeId);
-    if (!trade || trade.to !== rejectingPlayerId) return { success: false, reason: 'Invalid trade' };
-    this.tradeOffers.delete(tradeId);
-    return { success: true, message: 'Trade rejected' };
-  }
-
-  cleanupOldAllianceRequests() {
-    const now = Date.now();
-    const timeout = 60000;
-    this.allianceRequests.forEach((requests, fromId) => {
-      requests.forEach((timestamp, toId) => {
-        if (now - timestamp > timeout) requests.delete(toId);
-      });
-    });
   }
 
   checkVictory() {
@@ -599,7 +414,6 @@ class GameRoom {
   getGameStats() {
     return Array.from(this.players.values()).map(player => {
       const cells = this.mapGrid.getPlayerCells(player.id);
-      const buildings = cells.filter(c => c.cell.building).length;
       return {
         id: player.id,
         name: player.name,
@@ -608,9 +422,6 @@ class GameRoom {
         troops: Math.floor(player.troops),
         gold: Math.floor(player.gold),
         income: Math.floor(player.income),
-        buildings: buildings,
-        conquests: player.conquests,
-        kills: player.kills,
         allies: Array.from(this.alliances.get(player.id) || []).map(id => this.players.get(id)?.name).filter(Boolean)
       };
     }).sort((a, b) => b.cells - a.cells);
@@ -645,9 +456,8 @@ class GameRoom {
       troops: Math.floor(p.troops),
       baseX: p.baseX,
       baseY: p.baseY,
-      conquests: p.conquests,
-      kills: p.kills,
       isBot: p.isBot,
+      isExpanding: p.isExpanding || false,
       allies: Array.from(this.alliances.get(p.id) || [])
     }));
   }
